@@ -1,0 +1,277 @@
+openapi: 3.1.0
+info:
+  title: PRED Trading Platform Authentication Portfolio API
+  version: 1.0.0
+  description: "Required headers, token refresh, and EIP-712 CreateProxy signature for login. For overview, getting started, and environment configuration, see **Overview**.\n\n## Required headers\n\n- `Authorization: Bearer <token>`\n  (for authenticated endpoints)\n- `X-API-Key: <api_key>`\n  (required for login-with-signature only)\n- `X-Wallet-Address: <wallet_address>`\n  (for order and portfolio endpoints)\n- `X-Proxy-Address: <proxy_wallet_address>`\n  (for order and portfolio endpoints)\n\n**Token refresh:** Access tokens are automatically refreshed by the SDK whenever their remaining lifetime drops below the configured threshold. The default threshold is **5 minutes**, and can be overridden via the `RefreshThresholdSeconds` client option.\n\n## EIP-712 login signature — CreateProxy\n\nFormat: `0x<r><s><v>` (132 hex characters). Low-s normalized: `s <= curveOrderHalf`.\n\n**Domain (NO version field):** All values below are ENV-specific; use the row for your chosen environment (see Environment configuration in **Overview**).\n```\nEIP712Domain type: \"EIP712Domain(string name,uint256 chainId,address verifyingContract)\"\nname: \"Pred Contract Proxy Factory\"\nchainId:        <Chain ID from environment table — Testnet 84532, Mainnet 8453>\nverifyingContract: <Login Contract from environment table>\n```\n\n**Message:**\n```\nCreateProxy type: \"CreateProxy(address paymentToken,uint256 payment,address paymentReceiver)\"\npaymentToken: 0x0000000000000000000000000000000000000000\npayment: 0\npaymentReceiver: 0x0000000000000000000000000000000000000000\n```\n\n**Normalization constants:**\n- `curveOrder = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141`\n- `curveOrderHalf = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0`\n"
+servers:
+- url: https://testnet.pred.app
+  description: Testnet (ENV-specific). Base Sepolia; chain ID 84532. Use with Testnet row in Environment configuration.
+- url: https://www.pred.app
+  description: Mainnet (ENV-specific). Base; chain ID 8453. Use with Mainnet row in Environment configuration.
+tags:
+- name: Portfolio
+  description: 'Portfolio, balance, positions, and open orders.
+
+
+    **Endpoints:**
+
+    - Balance: `GET /api/v1/portfolio/balance`
+
+    - Positions: `GET /api/v1/portfolio/positions`
+
+    - Earnings: `GET /api/v1/portfolio/earnings`
+
+    - Open orders: `GET /api/v1/portfolio/open-orders` (optional pagination)
+
+    Require `Authorization`, `X-Wallet-Address`, `X-Proxy-Address`. For real-time open orders per market, prefer `GET /api/v1/order/{parentMarketID}/open-orders`; portfolio open-orders can have significant delays.
+
+    '
+paths:
+  /api/v1/portfolio/balance:
+    get:
+      tags:
+      - Portfolio
+      summary: Get account balance
+      description: Retrieve the current account balance in USD.
+      operationId: getBalance
+      parameters:
+      - $ref: '#/components/parameters/XWalletAddress'
+      - $ref: '#/components/parameters/XProxyAddress'
+      responses:
+        '200':
+          description: Balance retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BalanceResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/portfolio/positions:
+    get:
+      tags:
+      - Portfolio
+      summary: Get open positions
+      description: Retrieve all open positions across all markets.
+      operationId: getPositions
+      parameters:
+      - $ref: '#/components/parameters/XWalletAddress'
+      - $ref: '#/components/parameters/XProxyAddress'
+      responses:
+        '200':
+          description: Positions retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PositionsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/portfolio/earnings:
+    get:
+      tags:
+      - Portfolio
+      summary: Get portfolio earnings
+      description: Retrieve realized, unrealized, and total PnL for the authenticated user.
+      operationId: getEarnings
+      parameters:
+      - $ref: '#/components/parameters/XWalletAddress'
+      - $ref: '#/components/parameters/XProxyAddress'
+      responses:
+        '200':
+          description: Earnings retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EarningsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/portfolio/open-orders:
+    get:
+      tags:
+      - Portfolio
+      summary: Get open orders (portfolio — may have delays)
+      description: 'Retrieve open orders across all markets with optional pagination and market filter.
+
+
+        **Warning:** This endpoint may have significant delays in reflecting the latest order state (cancellations, fills). It is served by the portfolio service which aggregates data asynchronously.
+
+
+        **Recommended:** Use `GET /api/v1/order/{parentMarketID}/open-orders` instead for real-time, accurate open orders per parent market. Use this portfolio endpoint only for a cross-market overview when slight staleness is acceptable.
+
+        '
+      operationId: getOpenOrders
+      parameters:
+      - $ref: '#/components/parameters/XWalletAddress'
+      - $ref: '#/components/parameters/XProxyAddress'
+      - name: offset
+        in: query
+        required: false
+        description: Pagination offset (default 0)
+        schema:
+          type: integer
+          default: 0
+      - name: limit
+        in: query
+        required: false
+        description: Page size (default 100)
+        schema:
+          type: integer
+          default: 100
+      - name: market_id
+        in: query
+        required: false
+        description: Filter by market ID
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Open orders retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenOrdersResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+components:
+  schemas:
+    PositionsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        positions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Position'
+        error:
+          $ref: '#/components/schemas/Error'
+    Position:
+      type: object
+      properties:
+        market_id:
+          type: string
+          description: Market ID (hex)
+        market_name:
+          type: string
+        side:
+          type: string
+          enum:
+          - long
+          - short
+        quantity:
+          type: string
+          description: Position quantity in shares
+        average_price:
+          type: string
+          description: Average entry price in cents
+        amount:
+          type: string
+          description: Position amount in USD
+    OpenOrdersResponse:
+      type: object
+      properties:
+        orders:
+          type: array
+          items:
+            $ref: '#/components/schemas/OpenOrder'
+    EarningsResponse:
+      type: object
+      properties:
+        user_id:
+          type: string
+          description: Authenticated user ID
+        realized_pnl:
+          type: string
+          description: Realized PnL (decimal string)
+        unrealized_pnl:
+          type: string
+          description: Unrealized PnL (decimal string)
+        total_pnl:
+          type: string
+          description: Total PnL (decimal string)
+    OpenOrder:
+      type: object
+      properties:
+        order_id:
+          type: string
+        market_id:
+          type: string
+        market_name:
+          type: string
+        parent_market_id:
+          type: string
+        side:
+          type: string
+          enum:
+          - long
+          - short
+        price:
+          type: string
+          description: Price in cents
+        quantity:
+          type: string
+          description: Original quantity in shares
+        remaining_quantity:
+          type: string
+          description: Remaining quantity in shares
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          $ref: '#/components/schemas/Error'
+        message:
+          type: string
+        success:
+          type: boolean
+          default: false
+    BalanceResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            balance:
+              type: string
+              description: Account balance in USD (decimal string)
+        error:
+          $ref: '#/components/schemas/Error'
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: string
+  parameters:
+    XWalletAddress:
+      name: X-Wallet-Address
+      in: header
+      required: true
+      description: Your EOA wallet address
+      schema:
+        type: string
+        pattern: ^0x[a-fA-F0-9]{40}$
+    XProxyAddress:
+      name: X-Proxy-Address
+      in: header
+      required: true
+      description: Your proxy wallet address (from login response)
+      schema:
+        type: string
+        pattern: ^0x[a-fA-F0-9]{40}$
+  responses:
+    Unauthorized:
+      description: Authentication required or failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token from login endpoint

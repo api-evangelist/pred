@@ -1,0 +1,300 @@
+openapi: 3.1.0
+info:
+  title: PRED Trading Platform Authentication API
+  version: 1.0.0
+  description: "Required headers, token refresh, and EIP-712 CreateProxy signature for login. For overview, getting started, and environment configuration, see **Overview**.\n\n## Required headers\n\n- `Authorization: Bearer <token>`\n  (for authenticated endpoints)\n- `X-API-Key: <api_key>`\n  (required for login-with-signature only)\n- `X-Wallet-Address: <wallet_address>`\n  (for order and portfolio endpoints)\n- `X-Proxy-Address: <proxy_wallet_address>`\n  (for order and portfolio endpoints)\n\n**Token refresh:** Access tokens are automatically refreshed by the SDK whenever their remaining lifetime drops below the configured threshold. The default threshold is **5 minutes**, and can be overridden via the `RefreshThresholdSeconds` client option.\n\n## EIP-712 login signature — CreateProxy\n\nFormat: `0x<r><s><v>` (132 hex characters). Low-s normalized: `s <= curveOrderHalf`.\n\n**Domain (NO version field):** All values below are ENV-specific; use the row for your chosen environment (see Environment configuration in **Overview**).\n```\nEIP712Domain type: \"EIP712Domain(string name,uint256 chainId,address verifyingContract)\"\nname: \"Pred Contract Proxy Factory\"\nchainId:        <Chain ID from environment table — Testnet 84532, Mainnet 8453>\nverifyingContract: <Login Contract from environment table>\n```\n\n**Message:**\n```\nCreateProxy type: \"CreateProxy(address paymentToken,uint256 payment,address paymentReceiver)\"\npaymentToken: 0x0000000000000000000000000000000000000000\npayment: 0\npaymentReceiver: 0x0000000000000000000000000000000000000000\n```\n\n**Normalization constants:**\n- `curveOrder = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141`\n- `curveOrderHalf = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0`\n"
+servers:
+- url: https://testnet.pred.app
+  description: Testnet (ENV-specific). Base Sepolia; chain ID 84532. Use with Testnet row in Environment configuration.
+- url: https://www.pred.app
+  description: Mainnet (ENV-specific). Base; chain ID 8453. Use with Mainnet row in Environment configuration.
+tags:
+- name: Authentication
+  description: "Required headers, token refresh, and EIP-712 CreateProxy signature for login. For overview, getting started, and environment configuration, see **Overview**.\n\n## Required headers\n\n- `Authorization: Bearer <token>`\n  (for authenticated endpoints)\n- `X-API-Key: <api_key>`\n  (required for login-with-signature only)\n- `X-Wallet-Address: <wallet_address>`\n  (for order and portfolio endpoints)\n- `X-Proxy-Address: <proxy_wallet_address>`\n  (for order and portfolio endpoints)\n\n**Token refresh:** Access tokens are automatically refreshed by the SDK whenever their remaining lifetime drops below the configured threshold. The default threshold is **5 minutes**, and can be overridden via the `RefreshThresholdSeconds` client option.\n\n## EIP-712 login signature — CreateProxy\n\nFormat: `0x<r><s><v>` (132 hex characters). Low-s normalized: `s <= curveOrderHalf`.\n\n**Domain (NO version field):** All values below are ENV-specific; use the row for your chosen environment (see Environment configuration in **Overview**).\n```\nEIP712Domain type: \"EIP712Domain(string name,uint256 chainId,address verifyingContract)\"\nname: \"Pred Contract Proxy Factory\"\nchainId:        <Chain ID from environment table — Testnet 84532, Mainnet 8453>\nverifyingContract: <Login Contract from environment table>\n```\n\n**Message:**\n```\nCreateProxy type: \"CreateProxy(address paymentToken,uint256 payment,address paymentReceiver)\"\npaymentToken: 0x0000000000000000000000000000000000000000\npayment: 0\npaymentReceiver: 0x0000000000000000000000000000000000000000\n```\n\n**Normalization constants:**\n- `curveOrder = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141`\n- `curveOrderHalf = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0`\n"
+paths:
+  /api/v1/auth/login-with-signature:
+    post:
+      tags:
+      - Authentication
+      summary: Login with wallet signature
+      description: 'Authenticate using an EIP-712 CreateProxy wallet signature. **Required header:** `X-API-Key`.
+
+
+        See **Authentication** section for CreateProxy domain, message, and signature format (contract addresses, normalization).
+
+        '
+      operationId: loginWithSignature
+      parameters:
+      - name: X-API-Key
+        in: header
+        required: true
+        description: PRED API key
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginWithSignatureRequest'
+      responses:
+        '200':
+          description: Login successful
+          headers:
+            X-Access-Token:
+              description: JWT access token (also in response body)
+              schema:
+                type: string
+            Set-Cookie:
+              description: 'Refresh token cookie: `refresh_token=<token>; Path=/; HttpOnly; Secure; SameSite=Lax`'
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/auth/refresh/token:
+    post:
+      tags:
+      - Authentication
+      summary: Refresh access token
+      description: 'Refresh the access token using a refresh token. The refresh token can be sent via:
+
+
+        1. **Header** (preferred): `X-Refresh-Token: <refresh_token>` — checked first
+
+        2. **Cookie** (fallback): `refresh_token` cookie (set automatically by login endpoint)
+
+
+        The refresh token from the login response body (`refresh_token` field) can be sent as the `X-Refresh-Token` header.
+
+
+        **Token rotation:** Each refresh returns a new refresh token (via `Set-Cookie`). The old refresh token is invalidated — using it again returns 401 `REFRESH_TOKEN_ALREADY_USED`.
+
+
+        **Response includes:** new `access_token`, `user_id`, `proxy_wallet_address`, `is_enabled_trading`, and user profile data.
+
+        '
+      operationId: refreshToken
+      parameters:
+      - name: X-Refresh-Token
+        in: header
+        required: false
+        description: Refresh token from login response body (`refresh_token` field). Takes priority over cookie.
+        schema:
+          type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: {}
+      responses:
+        '200':
+          description: Token refreshed
+          headers:
+            Set-Cookie:
+              description: 'New refresh token cookie (rotated): `refresh_token=<new_token>; Path=/; HttpOnly; Secure; SameSite=Lax`'
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshTokenResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+components:
+  schemas:
+    RefreshTokenResponse:
+      type: object
+      description: 'Token refresh response. Includes new access token and user details.
+
+        A new refresh token is also set via `Set-Cookie` header (token rotation).
+
+        '
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            access_token:
+              type: string
+              description: New JWT access token
+            message:
+              type: string
+            user_id:
+              type: string
+            privy_wallet_address:
+              type: string
+            proxy_wallet_address:
+              type: string
+            is_activated:
+              type: boolean
+            default_username:
+              type: string
+            profile_picture:
+              type: string
+            is_enabled_trading:
+              type: boolean
+              description: Whether trading is enabled (reflects current state after Safe approval)
+            data:
+              type: object
+              description: Structured response for compatibility
+              properties:
+                user_id:
+                  type: string
+                is_activated:
+                  type: boolean
+                default_username:
+                  type: string
+                profile_picture:
+                  type: string
+                is_enabled_trading:
+                  type: boolean
+        error:
+          $ref: '#/components/schemas/Error'
+    LoginWithSignatureRequest:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - wallet_address
+          - signature
+          - message
+          - nonce
+          - chain_type
+          - timestamp
+          properties:
+            wallet_address:
+              type: string
+              description: EOA wallet address
+              pattern: ^0x[a-fA-F0-9]{40}$
+            signature:
+              type: string
+              description: 'EIP-712 CreateProxy signature. Format: 0x<r><s><v> (132 hex chars), low-s normalized.'
+              pattern: ^0x[a-fA-F0-9]{130}$
+            message:
+              type: string
+              description: Auth message
+            nonce:
+              type: string
+              description: Unique nonce (SDK uses nanosecond timestamp)
+            chain_type:
+              type: string
+              description: 'ENV-specific. Use the value for your chosen environment from the Environment configuration table.
+
+                Testnet: base-sepolia
+
+                Mainnet: base (not base-mainnet)
+
+                '
+              enum:
+              - base-sepolia
+              - base
+            timestamp:
+              type: integer
+              description: Unix timestamp in seconds
+            username:
+              type: string
+              description: Username (optional)
+            name:
+              type: string
+              description: Name (optional)
+            profile_picture:
+              type: string
+              format: uri
+              description: Profile picture URL (optional)
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          $ref: '#/components/schemas/Error'
+        message:
+          type: string
+        success:
+          type: boolean
+          default: false
+    LoginResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            access_token:
+              type: string
+              description: JWT access token
+            refresh_token:
+              type: string
+              description: Refresh token. Send as `X-Refresh-Token` header (or use the `refresh_token` cookie set by this endpoint) when calling `POST /api/v1/auth/refresh/token`.
+            data:
+              type: object
+              properties:
+                user_id:
+                  type: string
+                is_new_user:
+                  type: boolean
+                is_activated:
+                  type: boolean
+                is_new_activated:
+                  type: boolean
+                default_username:
+                  type: string
+                profile_picture:
+                  type: string
+                is_enabled_trading:
+                  type: boolean
+                  description: 'Whether trading is enabled for the user''s proxy wallet.
+
+                    If `false` or missing: complete Safe approval, then **re-login** (MANDATORY).
+
+                    '
+                wallet_address:
+                  type: string
+                proxy_wallet_addr:
+                  type: string
+            proxy_wallet_addr:
+              type: string
+              description: Proxy (Safe) wallet address
+            wallet_address:
+              type: string
+        error:
+          $ref: '#/components/schemas/Error'
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: string
+  responses:
+    Unauthorized:
+      description: Authentication required or failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token from login endpoint

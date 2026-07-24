@@ -1,0 +1,213 @@
+openapi: 3.1.0
+info:
+  title: PRED Trading Platform Authentication User API
+  version: 1.0.0
+  description: "Required headers, token refresh, and EIP-712 CreateProxy signature for login. For overview, getting started, and environment configuration, see **Overview**.\n\n## Required headers\n\n- `Authorization: Bearer <token>`\n  (for authenticated endpoints)\n- `X-API-Key: <api_key>`\n  (required for login-with-signature only)\n- `X-Wallet-Address: <wallet_address>`\n  (for order and portfolio endpoints)\n- `X-Proxy-Address: <proxy_wallet_address>`\n  (for order and portfolio endpoints)\n\n**Token refresh:** Access tokens are automatically refreshed by the SDK whenever their remaining lifetime drops below the configured threshold. The default threshold is **5 minutes**, and can be overridden via the `RefreshThresholdSeconds` client option.\n\n## EIP-712 login signature — CreateProxy\n\nFormat: `0x<r><s><v>` (132 hex characters). Low-s normalized: `s <= curveOrderHalf`.\n\n**Domain (NO version field):** All values below are ENV-specific; use the row for your chosen environment (see Environment configuration in **Overview**).\n```\nEIP712Domain type: \"EIP712Domain(string name,uint256 chainId,address verifyingContract)\"\nname: \"Pred Contract Proxy Factory\"\nchainId:        <Chain ID from environment table — Testnet 84532, Mainnet 8453>\nverifyingContract: <Login Contract from environment table>\n```\n\n**Message:**\n```\nCreateProxy type: \"CreateProxy(address paymentToken,uint256 payment,address paymentReceiver)\"\npaymentToken: 0x0000000000000000000000000000000000000000\npayment: 0\npaymentReceiver: 0x0000000000000000000000000000000000000000\n```\n\n**Normalization constants:**\n- `curveOrder = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141`\n- `curveOrderHalf = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0`\n"
+servers:
+- url: https://testnet.pred.app
+  description: Testnet (ENV-specific). Base Sepolia; chain ID 84532. Use with Testnet row in Environment configuration.
+- url: https://www.pred.app
+  description: Mainnet (ENV-specific). Base; chain ID 8453. Use with Mainnet row in Environment configuration.
+tags:
+- name: User
+  description: 'Safe approval endpoints for enabling trading on your proxy wallet.
+
+
+    ## Safe approval signature — raw secp256k1
+
+
+    - Sign the `transactionHash` from prepare response **directly** (raw secp256k1)
+
+    - **No EIP-191 prefix** / no `personal_sign`
+
+    - Format: `0x<r><s><v>` (132 hex chars) with low-s normalization
+
+    - `v` normalized to 27 or 28
+
+
+    **MANDATORY: After completing Safe approval (prepare, sign, execute), you MUST call `POST /api/v1/auth/login-with-signature` again to get a fresh JWT with `is_enabled_trading=true`. Without this re-login, order placement/cancellation will fail with "trading not enabled". A token refresh alone is NOT sufficient.**
+
+    '
+paths:
+  /api/v1/user/safe-approval/prepare:
+    post:
+      tags:
+      - User
+      summary: Prepare Safe approval transaction
+      description: 'Prepare a Safe wallet approval transaction. Send `safe_wallet_address` = your `proxy_wallet_addr` from login; sign the returned `transactionHash` with raw secp256k1 (no EIP-191); then call execute with signature and data.
+
+
+        See **Trading Enablement** section for full flow and mandatory re-login after execute.
+
+        '
+      operationId: prepareSafeApproval
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrepareSafeApprovalRequest'
+      responses:
+        '200':
+          description: Transaction data prepared
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrepareSafeApprovalResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/user/safe-approval/execute:
+    post:
+      tags:
+      - User
+      summary: Execute Safe approval transaction
+      description: 'Execute with the raw secp256k1 signature of `transactionHash` from prepare. See **Trading Enablement** section for mandatory re-login after this call (required for order placement).
+
+        '
+      operationId: executeSafeApproval
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExecuteSafeApprovalRequest'
+      responses:
+        '200':
+          description: Approval executed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExecuteSafeApprovalResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          description: Transaction execution failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    PrepareSafeApprovalRequest:
+      type: object
+      required:
+      - safe_wallet_address
+      properties:
+        safe_wallet_address:
+          type: string
+          description: Proxy wallet address from login response (proxy_wallet_addr)
+          pattern: ^0x[a-fA-F0-9]{40}$
+    ExecuteSafeApprovalRequest:
+      type: object
+      required:
+      - signature
+      - data
+      properties:
+        signature:
+          type: string
+          description: 'Raw secp256k1 signature of transactionHash from prepare response.
+
+            Format: 0x<r><s><v> (132 hex chars). No EIP-191 prefix. Low-s normalized.
+
+            '
+          pattern: ^0x[a-fA-F0-9]{130}$
+        data:
+          $ref: '#/components/schemas/SafeTransactionData'
+    PrepareSafeApprovalResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/SafeTransactionData'
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          $ref: '#/components/schemas/Error'
+        message:
+          type: string
+        success:
+          type: boolean
+          default: false
+    ExecuteSafeApprovalResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            is_enabled_trading:
+              type: boolean
+              description: 'Trading enabled status after Safe approval.
+
+                **⚠️ Even when true here, you MUST call login-with-signature again to get a fresh JWT.**
+
+                '
+        message:
+          type: string
+        error:
+          $ref: '#/components/schemas/Error'
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: string
+    SafeTransactionData:
+      type: object
+      properties:
+        approvalAmount:
+          type: string
+        baseGas:
+          type: string
+        chainId:
+          type: string
+        data:
+          type: string
+        gasPrice:
+          type: string
+        gasToken:
+          type: string
+        nonce:
+          type: string
+        operation:
+          type: integer
+        refundReceiver:
+          type: string
+        safeAddress:
+          type: string
+          description: Proxy wallet address
+        safeTxGas:
+          type: string
+        spenderAddress:
+          type: string
+        to:
+          type: string
+        tokenAddress:
+          type: string
+        transactionHash:
+          type: string
+          description: Hash to sign with raw secp256k1 (no EIP-191 prefix)
+        value:
+          type: string
+  responses:
+    Unauthorized:
+      description: Authentication required or failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token from login endpoint
