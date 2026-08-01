@@ -1,0 +1,61 @@
+generated: '2026-07-20'
+method: derived
+status: candidate
+source: openapi/pred-openapi.yml
+note: No official hosted MCP server published by Pred. Candidate tool list derived one-per-operation from
+  the documented OpenAPI; not an authoritative provider manifest.
+server:
+  name: pred
+  transport: http
+tools:
+- name: loginWithSignature
+  description: Login with wallet signature
+  source_operation: openapi/pred-openapi.yml#loginWithSignature
+- name: refreshToken
+  description: Refresh access token
+  source_operation: openapi/pred-openapi.yml#refreshToken
+- name: getAllParentMarkets
+  description: Get market discovery feed
+  source_operation: openapi/pred-openapi.yml#getAllParentMarkets
+- name: getParentMarketDetails
+  description: Get parent market details
+  source_operation: openapi/pred-openapi.yml#getParentMarketDetails
+- name: placeOrder
+  description: Place a new order
+  source_operation: openapi/pred-openapi.yml#placeOrder
+- name: cancelOrder
+  description: Cancel an order
+  source_operation: openapi/pred-openapi.yml#cancelOrder
+- name: cancelAllForParent
+  description: Cancel all orders for a parent market
+  source_operation: openapi/pred-openapi.yml#cancelAllForParent
+- name: cancelOrdersBulk
+  description: Bulk cancel orders for a parent market
+  source_operation: openapi/pred-openapi.yml#cancelOrdersBulk
+- name: getOpenOrdersForParent
+  description: Get open orders for a parent market (recommended)
+  source_operation: openapi/pred-openapi.yml#getOpenOrdersForParent
+- name: getOrderBook
+  description: Get order book for a market
+  source_operation: openapi/pred-openapi.yml#getOrderBook
+- name: getBalance
+  description: Get account balance
+  source_operation: openapi/pred-openapi.yml#getBalance
+- name: getPositions
+  description: Get open positions
+  source_operation: openapi/pred-openapi.yml#getPositions
+- name: getEarnings
+  description: Get portfolio earnings
+  source_operation: openapi/pred-openapi.yml#getEarnings
+- name: getOpenOrders
+  description: Get open orders (portfolio — may have delays)
+  source_operation: openapi/pred-openapi.yml#getOpenOrders
+- name: prepareSafeApproval
+  description: Prepare Safe approval transaction
+  source_operation: openapi/pred-openapi.yml#prepareSafeApproval
+- name: executeSafeApproval
+  description: Execute Safe approval transaction
+  source_operation: openapi/pred-openapi.yml#executeSafeApproval
+- name: getAblyToken
+  description: Get Ably WebSocket token
+  source_operation: openapi/pred-openapi.yml#getAblyToken

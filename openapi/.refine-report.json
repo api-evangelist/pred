@@ -1,0 +1,26 @@
+{
+  "provider": "pred",
+  "sources": [
+    "pred-authentication-api-openapi.yml",
+    "pred-market-discovery-api-openapi.yml",
+    "pred-orders-api-openapi.yml",
+    "pred-overview-api-openapi.yml",
+    "pred-portfolio-api-openapi.yml",
+    "pred-user-api-openapi.yml",
+    "pred-websocket-api-openapi.yml"
+  ],
+  "outputs": [
+    "pred-authentication-api-openapi.yml",
+    "pred-market-discovery-api-openapi.yml",
+    "pred-orders-api-openapi.yml",
+    "pred-overview-api-openapi.yml",
+    "pred-portfolio-api-openapi.yml",
+    "pred-user-api-openapi.yml",
+    "pred-websocket-api-openapi.yml"
+  ],
+  "archived": [],
+  "errors": [],
+  "warnings": [],
+  "notes": [],
+  "skipped": []
+}

@@ -1,0 +1,57 @@
+generated: '2026-07-20'
+method: derived
+source: openapi/pred-openapi.yml
+entities:
+- name: ParentMarket
+  id: parent_market_id
+  note: A fixture/event grouping child markets; carries contract_address used as EIP-712 verifyingContract.
+- name: Market
+  id: market_id
+  note: Child market = one outcome within a parent (e.g. Team A / Team B / Draw).
+- name: Fixture
+  id: fixture_id
+  note: Sports fixture metadata (game_start_time) attached to a parent market.
+- name: Order
+  note: Signed EIP-712 order; LONG/SHORT intent, price(cents), quantity(shares).
+- name: Position
+  note: Net exposure per market held by a proxy wallet.
+- name: Portfolio
+  note: Balance, positions, earnings (PnL) for the authenticated user.
+- name: User
+  id: user_id
+  note: Identity keyed to an EOA wallet + Gnosis Safe proxy wallet.
+- name: ProxyWallet
+  note: Per-user Gnosis Safe holding USDC collateral; executes orders.
+relationships:
+- from: ParentMarket
+  type: has_many
+  to: Market
+  via: markets[]
+- from: ParentMarket
+  type: has_one
+  to: Fixture
+  via: fixture
+- from: Market
+  type: belongs_to
+  to: ParentMarket
+  via: parent_market_id
+- from: Order
+  type: belongs_to
+  to: Market
+  via: market_id
+- from: Order
+  type: belongs_to
+  to: ParentMarket
+  via: parentMarketID
+- from: Position
+  type: belongs_to
+  to: Market
+  via: market_id
+- from: User
+  type: has_one
+  to: ProxyWallet
+  via: proxy_wallet_addr
+- from: Portfolio
+  type: belongs_to
+  to: User
+  via: user_id

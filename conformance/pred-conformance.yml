@@ -1,0 +1,26 @@
+generated: '2026-07-20'
+method: derived
+source: openapi/pred-openapi.yml
+standards:
+- id: oauth2
+  conforms: false
+- id: openid-connect
+  conforms: false
+- id: http-bearer-jwt
+  conforms: true
+  evidence: BearerAuth http/bearer JWT securityScheme
+- id: eip-712
+  conforms: true
+  evidence: CreateProxy + Order typed-data signatures documented
+- id: eip-1271-safe
+  conforms: true
+  evidence: Gnosis Safe proxy wallet order execution
+- id: rfc9457-problem-details
+  conforms: false
+  evidence: custom {success,error} envelope, not application/problem+json
+- id: offset-limit-pagination
+  conforms: true
+  evidence: limit/offset params with data.total
+- id: idempotency-key
+  conforms: false
+  evidence: no HTTP idempotency key; on-chain salt/nonce instead

@@ -1,0 +1,33 @@
+generated: '2026-07-20'
+method: probed
+source: live DNS/TLS/HTTP probes of apis.yml + OpenAPI hosts
+hosts:
+- host: www.pred.app
+  https: true
+  tls_version: TLSv1.3
+  cert_expires: Mar 18 23:59:59 2027 GMT
+  hsts: null
+- host: pred-1.gitbook.io
+  https: true
+  tls_version: TLSv1.3
+  cert_expires: Oct 15 19:03:12 2026 GMT
+  hsts: true
+  hsts_max_age: 31536000
+- host: testnet.pred.app
+  https: false
+domains:
+- domain: pred.app
+  dnssec: false
+  caa:
+  - 0 issue "amazon.com"
+  - 0 issue "letsencrypt.org"
+  - 0 issuewild ";"
+  spf: true
+  dmarc: true
+  dmarc_policy: reject
+- domain: gitbook.io
+  dnssec: false
+  caa: []
+  spf: true
+  dmarc: true
+  dmarc_policy: quarantine

@@ -1,0 +1,193 @@
+asyncapi: 2.6.0
+x-provenance:
+  generated: '2026-07-20'
+  method: searched
+  source: https://pred-1.gitbook.io/pred-docs/api-reference/websocket-ably
+info:
+  title: PRED Real-Time API (Ably WebSocket)
+  version: 1.0.0
+  description: Real-time market and order data for the Pred prediction exchange, delivered over Ably WebSocket.
+    Obtain an Ably token via POST /api/v1/auth/ably (use it as Ably authCallback). The private user channel
+    requires entering Ably Presence before events are delivered.
+servers:
+  ably:
+    url: realtime.ably.io
+    protocol: wss
+    description: Ably realtime. Token auth via POST /api/v1/auth/ably.
+channels:
+  market:{marketId}:
+    description: 'Public market channel. Capability: subscribe. Carries orderbook snapshots and last-traded
+      price.'
+    parameters:
+      marketId:
+        schema:
+          type: string
+    subscribe:
+      operationId: onMarketUpdate
+      message:
+        oneOf:
+        - name: orderBookSnapshot
+          payload:
+            type: object
+            description: 'WS event: orderbook on market:orderbook:{marketID}. Throttled to 100ms.'
+            properties:
+              market_id:
+                type: string
+              last_updated_at:
+                type: string
+                format: date-time
+              sequence_number:
+                type: integer
+                format: int64
+              last_update_id:
+                type: integer
+                format: int64
+              bids:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    price:
+                      type: string
+                      description: Price in cents
+                    quantity:
+                      type: string
+                      description: Quantity in shares
+                    total:
+                      type: string
+                      description: Total value
+              asks:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    price:
+                      type: string
+                    quantity:
+                      type: string
+                    total:
+                      type: string
+        - name: lastTradedPrice
+          payload:
+            type: object
+            description: 'WS event: ltp on market:ltp:{marketID}. Throttled to 100ms.'
+            properties:
+              price:
+                type: string
+                description: Last traded price in cents
+              volume:
+                type: string
+              timestamp:
+                type: integer
+                format: int64
+  private:user:{userId}:
+    description: 'Private per-user channel. Capabilities: presence, subscribe. You may only subscribe
+      to your own user_id channel, and MUST enter Ably Presence first or no order events are delivered.'
+    parameters:
+      userId:
+        schema:
+          type: string
+    subscribe:
+      operationId: onUserOrderEvent
+      message:
+        oneOf:
+        - name: order-created
+          payload:
+            type: object
+            description: 'WS event: order-created on private:user:{userID}'
+            properties:
+              order_id:
+                type: string
+              market_id:
+                type: string
+              market_name:
+                type: string
+              parent_market_id:
+                type: string
+              parent_market_name:
+                type: string
+              side:
+                type: string
+                enum:
+                - long
+                - short
+              price:
+                type: string
+                description: Price in cents
+              quantity:
+                type: string
+                description: Quantity in shares
+              amount:
+                type: string
+                description: Amount in USD
+              remaining_quantity:
+                type: string
+              reduce_only:
+                type: boolean
+              market_maker:
+                type: boolean
+              expiration:
+                type: integer
+                format: int64
+        - name: order-updated
+          payload:
+            type: object
+            description: 'WS event: order-updated on private:user:{userID}.
+
+              Indicates order matched on-chain (fill). matched_on_chain may be false before
+
+              on-chain confirmation; treat as a fill regardless. Position from API may not
+
+              yet reflect the impact.
+
+
+              Alternate payload shapes may include: market_id, parent_market_id, side, price,
+
+              quantity fields, or nested "order" object, or alternate keys (order_side,
+
+              order_price, order_quantity).
+
+              '
+            properties:
+              event_type:
+                type: string
+                enum:
+                - order_matched_on_chain
+              order_id:
+                type: string
+              market_id:
+                type: string
+              parent_market_id:
+                type: string
+              side:
+                type: string
+                enum:
+                - long
+                - short
+              price:
+                type: string
+              quantity:
+                type: string
+              remaining_quantity:
+                type: string
+              filled_quantity:
+                type: string
+              matched_on_chain:
+                type: boolean
+              timestamp:
+                type: integer
+                format: int64
+        - name: order-cancelled
+          payload:
+            type: object
+            description: 'WS event: order-cancelled on private:user:{userID}'
+            properties:
+              event_type:
+                type: string
+                enum:
+                - order_cancelled
+              order_id:
+                type: string
+              timestamp:
+                type: integer
+                format: int64

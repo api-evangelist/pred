@@ -1,0 +1,59 @@
+arazzo: 1.0.1
+info:
+  title: PRED trading workflows
+  version: 1.0.0
+  summary: End-to-end signed-order trading flow on the Pred prediction exchange.
+sourceDescriptions:
+- name: pred
+  url: ../openapi/pred-openapi.yml
+  type: openapi
+workflows:
+- workflowId: login-discover-and-place-order
+  summary: Login with wallet signature, discover an active market, read its orderbook, place a signed
+    order, and confirm the position.
+  inputs:
+    type: object
+    properties:
+      api_key:
+        type: string
+      chain_type:
+        type: string
+        default: base-sepolia
+      parentMarketID:
+        type: string
+      marketID:
+        type: string
+  steps:
+  - stepId: login
+    operationId: loginWithSignature
+    description: EIP-712 CreateProxy login. Provide X-API-Key and a signed message body.
+    outputs:
+      access_token: $response.body#/data/access_token
+      proxy: $response.body#/data/proxy_wallet_addr
+  - stepId: discover
+    operationId: getAllParentMarkets
+    description: List active parent/child markets (verbose=true).
+    outputs:
+      total: $response.body#/data/total
+  - stepId: orderbook
+    operationId: getOrderBook
+    description: Read the orderbook for the chosen parent/child market.
+    parameters:
+    - name: parentMarketID
+      in: path
+      value: $inputs.parentMarketID
+    - name: marketID
+      in: path
+      value: $inputs.marketID
+  - stepId: place
+    operationId: placeOrder
+    description: Place an EIP-712 signed order on the parent market.
+    parameters:
+    - name: parentMarketID
+      in: path
+      value: $inputs.parentMarketID
+    outputs:
+      order: $response.body
+  - stepId: confirm
+    operationId: getPositions
+    description: Confirm the resulting position.

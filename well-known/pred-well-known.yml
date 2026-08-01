@@ -1,0 +1,23 @@
+generated: '2026-07-20'
+method: searched
+source: live probes of /.well-known/* on Pred API hosts
+note: No .well-known discovery documents are published. Recorded for auditability; no WellKnown/SecurityTxt
+  pointer emitted.
+hosts:
+- host: https://www.pred.app
+  documents:
+  - path: /.well-known/security.txt
+    status: 404
+  - path: /.well-known/openid-configuration
+    status: 404
+  - path: /.well-known/oauth-authorization-server
+    status: 404
+  - path: /.well-known/api-catalog
+    status: 404
+  - path: /.well-known/ai-plugin.json
+    status: 404
+- host: https://testnet.pred.app
+  documents:
+  - path: /.well-known/*
+    status: 0
+    note: host not reachable at probe time

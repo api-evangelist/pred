@@ -1,0 +1,1911 @@
+# Provenance: API Evangelist enrichment pipeline
+# generated: '2026-07-20'
+# method: searched
+# source: https://pred-1.gitbook.io/pred-docs/api-reference/ (merged per-tag OpenAPI 3.1 fragments)
+openapi: 3.1.0
+info:
+  title: PRED Trading Platform API
+  version: 1.0.0
+servers:
+- url: https://testnet.pred.app
+  description: Testnet (ENV-specific). Base Sepolia; chain ID 84532. Use with Testnet row in Environment
+    configuration.
+- url: https://www.pred.app
+  description: Mainnet (ENV-specific). Base; chain ID 8453. Use with Mainnet row in Environment configuration.
+tags:
+- name: Authentication
+  description: |
+    Required headers, token refresh, and EIP-712 CreateProxy signature for login. For overview, getting started, and environment configuration, see **Overview**.
+
+    ## Required headers
+
+    - `Authorization: Bearer <token>`
+      (for authenticated endpoints)
+    - `X-API-Key: <api_key>`
+      (required for login-with-signature only)
+    - `X-Wallet-Address: <wallet_address>`
+      (for order and portfolio endpoints)
+    - `X-Proxy-Address: <proxy_wallet_address>`
+      (for order and portfolio endpoints)
+
+    **Token refresh:** Access tokens are automatically refreshed by the SDK whenever their remaining lifetime drops below the configured threshold. The default threshold is **5 minutes**, and can be overridden via the `RefreshThresholdSeconds` client option.
+
+    ## EIP-712 login signature — CreateProxy
+
+    Format: `0x<r><s><v>` (132 hex characters). Low-s normalized: `s <= curveOrderHalf`.
+
+    **Domain (NO version field):** All values below are ENV-specific; use the row for your chosen environment (see Environment configuration in **Overview**).
+    ```
+    EIP712Domain type: "EIP712Domain(string name,uint256 chainId,address verifyingContract)"
+    name: "Pred Contract Proxy Factory"
+    chainId:        <Chain ID from environment table — Testnet 84532, Mainnet 8453>
+    verifyingContract: <Login Contract from environment table>
+    ```
+
+    **Message:**
+    ```
+    CreateProxy type: "CreateProxy(address paymentToken,uint256 payment,address paymentReceiver)"
+    paymentToken: 0x0000000000000000000000000000000000000000
+    payment: 0
+    paymentReceiver: 0x0000000000000000000000000000000000000000
+    ```
+
+    **Normalization constants:**
+    - `curveOrder = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141`
+    - `curveOrderHalf = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0`
+- name: Market Discovery
+  description: |
+    Market information and discovery (public; no auth). Use this section to understand **parent_market_id** and **market_id** and to list all markets.
+
+    ## What are parent_market_id and market_id?
+
+    - **parent_market_id:** Identifies a parent market (e.g. a fixture or event). It groups one or more child markets. Order and orderbook paths are scoped by parent (e.g. `GET /api/v1/order/{parentMarketID}/orderbook/{marketID}`). Cancel and open-orders endpoints are also per parent.
+    - **market_id:** Identifies a specific (child) market within a parent (e.g. one outcome: Team A, Team B, or Draw). Used in place order body (`market_id`), orderbook path (`marketID`), and cancel body. Each parent can have multiple child markets; each child has its own `market_id`.
+
+    You need both when placing orders (parent in the path, market_id in the body) and when fetching orderbooks (parent and market in the path).
+
+    ## Getting parent_market_id and market_id
+
+    **Get all markets:** Call `GET /api/v1/market-discovery/discover?verbose=true&limit=50&offset=0`, then continue paging with `offset += limit` until all `data.total` rows are consumed. `verbose=true` is required for the trading-critical fields that non-verbose responses can omit: `parent_market_data.parent_market_id`, `parent_market_data.contract_address`, `parent_market_data.parent_market_type`, `parent_market_data.parent_market_family`, and fixture fields such as `fixture.fixture_id` and `fixture.game_start_time`. The response shape is `data.parent_markets_list[]`, where each entry has `parent_market_data`, optional `fixture`, optional `team_data`, and child `markets[]`.
+
+    **Runtime eligibility used by market-maker style clients:** first filter your own configured markets to `active`; then require the discovered parent row to have `parent_market_data.status == "active"`; then require the specific child row in `markets[]` to have `status == "active"`. Child statuses such as `resolved` or `redeemed` are terminal and should be treated as not quote/trade eligible. For market makers, also validate the Polymarket/PRED orderbook or external liquidity source for the child before enabling quoting.
+
+    **Important field mapping:** use `parent_market_data.parent_market_id` as the parent path parameter, `markets[].market_id` as the child `market_id`, `parent_market_data.contract_address` as the EIP-712 `verifyingContract`, `parent_market_data.parent_market_family` for family-level config, `parent_market_data.parent_market_type` to distinguish fixtures from generic/futures markets, and `fixture.game_start_time` for fixture/live-window logic.
+
+    To get details for a single parent (including its child market IDs and statuses), call `GET /api/v1/market-discovery/parents/{parentMarketID}`.
+
+    ## Endpoints
+
+    - `GET /api/v1/market-discovery/discover?verbose=true&limit=50&offset=0` — paginated discovery feed for parent markets, child markets, contract addresses, market family/type, and fixture context.
+    - `GET /api/v1/market-discovery/parents/{parentMarketID}` — details for one parent, including child markets.
+- name: Orders
+  description: |
+    Order placement, cancellation, and management endpoints.
+
+    ## EIP-712 order signature
+
+    All orders must be signed using EIP-712. Format: `0x<r><s><v>` (132 hex characters), low-s normalized.
+
+    **Domain (HAS version field):** `chainId` is ENV-specific. `verifyingContract` must come from market discovery for the specific parent market.
+    ```
+    EIP712Domain type: "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
+    name: "Pred CTF Exchange"
+    version: "1"
+    chainId:        <Chain ID from environment table — Testnet 84532, Mainnet 8453>
+    verifyingContract: <parent_market_data.contract_address from discovery for this parent market>
+    ```
+
+    **Order contract source (MANDATORY):** Use `parent_market_data.contract_address` from market discovery for the target parent market. Do not assume one static contract per environment; markets can have different order contract addresses.
+
+    **Order type (FIELD ORDER IS CRITICAL):**
+    ```
+    "Order(uint256 salt,address maker,address signer,address taker,uint256 price,uint256 quantity,uint256 expiration,uint256 nonce,bytes32 questionId,uint256 feeRateBps,uint8 intent,uint8 signatureType)"
+    ```
+
+    **Field meanings:**
+    - `salt`: `"02"` + 10-digit random number (e.g. `"020123456789"`); stringified integer
+    - `maker`: proxy wallet address (from login `proxy_wallet_addr`)
+    - `signer`: EOA wallet address
+    - `taker`: `0x0000000000000000000000000000000000000000` (always zero)
+    - `price`: wei-scaled = `(priceCents / 100) * 1e6` (e.g. 55 cents → 550000; not `55 * 1e6`)
+    - `quantity`: wei-scaled = `quantity * 1e6` (e.g. 100 shares → 100000000)
+    - `expiration`: Unix seconds; `0` = GTC
+    - `nonce`: `0` (always)
+    - `questionId`: market ID as bytes32; left-pad with zeros if hex &lt; 64 chars
+    - `feeRateBps`: `0` (default)
+    - `intent`: LONG = `0`, SHORT = `1` (uint8)
+    - `signatureType`: `2` (always; uint8)
+
+    ## Cross-matching
+
+    Cross-matching applies only **across child markets of the same parent market** (e.g. a parent with 3-outcome markets: Team A, Team B, Draw). It is enabled when the parent is configured for it.
+
+    **When it applies:** A key validity condition — **Long orders summing to 100c across all markets of a cross-match–enabled parent form a valid match** (e.g. Long 25 in A + Long 25 in B + Long 50 in C = 100c).
+
+    **How it works:** Orders match across child markets by combining liquidity from peer (sibling) markets into synthetic bid/ask levels. For a given child market, synthetic *Short* levels are derived from *Long* orders in peer child markets (e.g. Long 25 in B + Long 25 in C + Long 25 in D → synthetic Short at 75 for market A). An incoming Long order in A can match against these synthetic Short levels; execution is against the underlying peer Long orders. Similarly, synthetic *Long* levels can be built from *Short* orders in peer child markets; an incoming Short order can match against them.
+
+    **Self-match:** Self-match is **allowed** when cross-matching is involved: the same user can match against their own liquidity **across different child markets within the same parent**. For example, your Long orders in two outcomes can provide synthetic liquidity that your Short order in the third outcome matches against. This is intentional and valid for cross-match–enabled parents. Self-match *within* the same market may be restricted; self-match *across* markets in the same parent is allowed.
+
+    **Implications for API users:**
+    - Orderbook responses may include synthetic levels; orderbook metadata can indicate `cross_matching_enabled` (e.g. in WebSocket orderbook payloads).
+    - Placing Long orders in multiple child markets can create combined liquidity (e.g. summing to 100c Long across the parent's markets is a valid match). A Short order in another child market may match—including self-match—against that liquidity.
+    - 422 / validation may still apply for other liquidity or validation reasons.
+
+    **Example:** Long 25 in markets B, C, D → synthetic Short 75 for market A; or Long 25+25+50 across A, B, C = 100c valid match.
+
+    ## Units
+
+    - `price`: **cents** (e.g. 55.0 = $0.55)
+    - `quantity`: **shares**
+    - `amount`: **USD**
+    - `fee_rate_bps`: **basis points** (default 0)
+    - `timestamp`: **Unix seconds** (in place order payload; within 15s of server time)
+- name: Overview
+  description: |
+    ## About PRED
+
+    PRED is a fully decentralized prediction market platform built on Base (Ethereum L2), enabling users to trade on real-world events with LONG and SHORT positions—similar to perpetual futures trading.
+
+    **LONG positions** profit when the event occurs (YES outcome), while **SHORT positions** profit when it doesn't (NO outcome). PRED uses a decentralized architecture where users maintain full custody of their funds through Gnosis Safe proxy wallets, requiring cryptographic signatures (EIP-712) for every order.
+
+    On first use, the platform automatically creates a Gnosis Safe proxy wallet for each user and requires funding it with USDC. All orders are signed by your EOA (Externally Owned Account) to authorize the proxy wallet to execute trades.
+
+    ## Getting started
+
+    **Step 1:** Call `POST /api/v1/auth/login-with-signature` with `X-API-Key` header and EIP-712 CreateProxy signature. Save from the response:
+    - `access_token`
+    - `refresh_token`
+    - `proxy_wallet_addr`
+    - `user_id`
+    - `is_enabled_trading`
+
+    **Step 1b (if `is_enabled_trading` is `false` or missing):** Do these in order — (a) `POST /api/v1/user/safe-approval/prepare` with `safe_wallet_address = proxy_wallet_addr`; (b) Sign the returned `transactionHash` using raw secp256k1 (no EIP-191 prefix); (c) `POST /api/v1/user/safe-approval/execute` with `{ signature, data }`; (d) **MANDATORY: Call `POST /api/v1/auth/login-with-signature` again** to get a fresh JWT with `is_enabled_trading=true`. Without this re-login, order placement will fail.
+
+    **Before trading:** discover valid parent/child market IDs from `GET /api/v1/market-discovery/discover?verbose=true&limit=50&offset=0`. Page with `offset += limit` until `data.total` is exhausted. Use only rows where `parent_market_data.status == "active"` and the child `markets[].status == "active"`; treat terminal child statuses such as `resolved` or `redeemed` as not quote/trade eligible. `verbose=true` is required for the fields most trading clients need: `parent_market_data.parent_market_id`, `parent_market_data.contract_address`, `parent_market_data.parent_market_type`, `parent_market_data.parent_market_family`, and fixture metadata. The order contract for signatures must come from the discovered parent row.
+
+    **Step 2:** `GET /api/v1/order/{parentMarketID}/orderbook/{marketID}` — prices in cents, sizes in shares.
+
+    **Step 3:** `POST /api/v1/order/{parentMarketID}/place` with EIP-712 Order signature. Amount: Long = `(price*qty)/100`, Short = `((100-price)*qty)/100`.
+
+    **Step 4:** `GET /api/v1/portfolio/positions`
+
+    **Step 5:** `GET /api/v1/order/{parentMarketID}/open-orders` (recommended, real-time)
+
+    **Step 6:** `DELETE /api/v1/order/{parentMarketID}/cancel`
+
+    For login signature details (CreateProxy domain, message, normalization), see **Authentication**.
+
+    For what `parent_market_id` and `market_id` are and how to obtain them, see **Market Discovery**.
+
+    ## X-API-Key
+
+    The `X-API-Key` header is **required** to use PRED's login-with-signature endpoint (`POST /api/v1/auth/login-with-signature`). Please reach out to PRED to request an API key.
+
+    ## Testing APIs from this UI
+
+    **Method 1 — Scalar client (recommended):** Click **Try it** on any endpoint; in the modal that opens, click **Open API client**. This opens the Scalar API client in a new context where you can send requests without CORS issues.
+
+    **Method 2 — Disable CORS in browser:** Calling the API directly from the "Try it" UI in this documentation may fail with **CORS errors** (browsers block cross-origin requests by default). To test from here, disable CORS in your browser.
+
+    ### Safari — disable cross-origin restrictions
+
+    Safari is the only major browser with a native menu toggle that does not require restarting or using the command line.
+
+    1. **Enable Develop menu:** Go to **Safari > Settings > Advanced** and check **"Show features for web developers"**.
+    2. **Disable restrictions:** In the **Develop** menu at the top, select **Disable Cross-Origin Restrictions**.
+    3. **Refresh** the documentation page for the change to take effect.
+
+    (For other browsers, use their developer-mode or extension options to disable CORS for this origin, or call the API from your own app or a tool like curl.)
+
+    ## Environment configuration
+
+    **All of the following are environment-specific.** Choose **Testnet** or **Mainnet** first; then use the values from that row for base URL, chain ID, and chain type (login body).
+
+    **IMPORTANT for order signatures:** do **not** hardcode order contract from this table when placing orders. For each parent market, use `parent_market_data.contract_address` from market discovery (`GET /api/v1/market-discovery/discover?verbose=true&limit=50&offset=0` or `GET /api/v1/market-discovery/parents/{parentMarketID}`) as the EIP-712 `verifyingContract`. Different markets can use different order contract addresses.
+
+    | Environment | Base URL (ENV-specific) | Chain ID (ENV-specific) | Chain Type login body (ENV-specific) | Login Contract (ENV-specific) | Order Contract (ENV-specific) |
+    |-------------|------------------------|-------------------------|--------------------------------------|------------------------------|------------------------------|
+    | **Testnet** | `https://testnet.pred.app` | 84532 | `base-sepolia` | `0x306b5C979b812BD6eE6767043A24c5D8870e292A` | `0xc76DC1c16E672f04b8faD103269E7474FA620a7B` |
+    | **Mainnet** | `https://www.pred.app` | 8453 | `base` | `0xA077e7aaBF2e3c0155F83789e95f46602D03F7f0` | `0x1938Af63B717B80ea62ccB4CCBf799F8a28dEFB0` |
+
+    **Chain type in login body:**
+    - Testnet: `base-sepolia`
+    - Mainnet: `base` (not `base-mainnet`)
+
+    ## How to deposit funds to wallet
+
+    Send **USDC on Base** to your **proxy_wallet_address** (returned in the response from `POST /api/v1/auth/login-with-signature`). The proxy wallet is the Gnosis Safe that holds your trading collateral; all orders are executed from this wallet.
+
+    **Trial run:** Send 5 USDC (or any minimal amount) as a test. Then place a trade, get it matched, and confirm a position is created (e.g. via `GET /api/v1/portfolio/positions`). This end-to-end flow verifies funding, login, order placement, and position tracking.
+- name: Portfolio
+  description: |
+    Portfolio, balance, positions, and open orders.
+
+    **Endpoints:**
+    - Balance: `GET /api/v1/portfolio/balance`
+    - Positions: `GET /api/v1/portfolio/positions`
+    - Earnings: `GET /api/v1/portfolio/earnings`
+    - Open orders: `GET /api/v1/portfolio/open-orders` (optional pagination)
+    Require `Authorization`, `X-Wallet-Address`, `X-Proxy-Address`. For real-time open orders per market, prefer `GET /api/v1/order/{parentMarketID}/open-orders`; portfolio open-orders can have significant delays.
+- name: User
+  description: |
+    Safe approval endpoints for enabling trading on your proxy wallet.
+
+    ## Safe approval signature — raw secp256k1
+
+    - Sign the `transactionHash` from prepare response **directly** (raw secp256k1)
+    - **No EIP-191 prefix** / no `personal_sign`
+    - Format: `0x<r><s><v>` (132 hex chars) with low-s normalization
+    - `v` normalized to 27 or 28
+
+    **MANDATORY: After completing Safe approval (prepare, sign, execute), you MUST call `POST /api/v1/auth/login-with-signature` again to get a fresh JWT with `is_enabled_trading=true`. Without this re-login, order placement/cancellation will fail with "trading not enabled". A token refresh alone is NOT sufficient.**
+- name: WebSocket
+  description: |
+    PRED uses [Ably](https://ably.com/) for real-time WebSocket data. Use Ably's token auth with `POST /api/v1/auth/ably` as your `authCallback`.
+
+    ## Token auth
+
+    Call `POST /api/v1/auth/ably` to get raw Ably `TokenDetails` JSON:
+
+    ```json
+    {
+      "token": "ably-token-string",
+      "keyName": "xxxxx.xxxxx",
+      "clientId": "user-uuid",
+      "capability": "{\"private:user:user-uuid\":[\"presence\",\"subscribe\"],\"market:*\":[\"subscribe\"]}",
+      "expires": 1700000000000,
+      "issued": 1699996400000
+    }
+    ```
+
+    **Capabilities granted:**
+    - Channel `private:user:<user_id>`: `presence`, `subscribe`
+    - Channel `market:*`: `subscribe`
+
+    ## Private user channel: `private:user:{userID}`
+
+    - **Authenticated**: you can only subscribe to your own `user_id` channel
+    - **Must subscribe with Presence** (see below) — PRED only pushes events to clients that have entered presence on this channel
+    - `user_id` comes from the login response
+
+    ## How to subscribe with presence
+
+    For the private user channel, you must **enter presence** before subscribing; otherwise PRED does not deliver order events. Use Ably's presence API in this order:
+
+    1. Obtain a token: call `POST /api/v1/auth/ably` with `Authorization: Bearer <access_token>` (and optionally `X-Wallet-Address`, `X-Proxy-Address`). Use the returned body as Ably's token (e.g. in `authCallback`).
+    2. Connect to Ably with that token (e.g. `ably.NewRealtime` with `authCallback` that returns the token).
+    3. Resolve the channel name for your user (e.g. `private:user:<user_id>` from login; the token's capability may also indicate the channel).
+    4. Get the channel: `channel := realtime.Channels.Get(channelName)`.
+    5. **Enter presence** on the channel: call `channel.Presence.Enter(ctx, data)` with a small payload (e.g. `map[string]string{"source": "your-app"}`). This step is required; PRED only sends events to clients that have entered presence.
+    6. Subscribe to messages: call `channel.SubscribeAll(ctx, messageHandler)` (or `channel.Subscribe(ctx, eventName, handler)` for specific events). Handle `order-created`, `order-cancelled`, `order-updated` (and optionally `order-adjusted` if supported).
+
+    If you subscribe without entering presence first, you will not receive order events on the private user channel.
+
+    **Events:**
+
+    ### `order-created` — New limit order placed
+
+    ```json
+    {
+      "order_id": "string",
+      "market_id": "string",
+      "market_name": "string",
+      "parent_market_id": "string",
+      "parent_market_name": "string",
+      "side": "long | short",
+      "price": "string (cents)",
+      "quantity": "string (shares)",
+      "amount": "string (USD)",
+      "remaining_quantity": "string",
+      "reduce_only": false,
+      "market_maker": false,
+      "expiration": 1234567890
+    }
+    ```
+
+    ### `order-cancelled` — Order cancelled by user or system
+
+    ```json
+    {
+      "event_type": "order_cancelled",
+      "order_id": "string",
+      "timestamp": 1234567890
+    }
+    ```
+
+    ### `order-updated` — Order matched on-chain (fully or partially filled)
+
+    ```json
+    {
+      "event_type": "order_matched_on_chain",
+      "order_id": "string",
+      "remaining_quantity": "string",
+      "filled_quantity": "string",
+      "timestamp": 1234567890
+    }
+    ```
+
+    Note: `matched_on_chain` may be `false` before confirmation; treat as a fill and react. Position from API may not reflect the impact yet.
+
+    The SDK also handles alternate payload shapes: fields like `order_side`, `order_price`, `order_quantity`, or a nested `order` object with `side`, `price`, `quantity`. Additional fields that may appear: `market_id`, `parent_market_id`, `side`, `price`, `quantity`.
+
+    ## Public market channels
+
+    ### `market:orderbook:{marketID}` — Order book snapshot
+
+    Event name: `orderbook` (throttled to 100ms)
+
+    ```json
+    {
+      "market_id": "string",
+      "last_updated_at": "2024-01-01T00:00:00Z",
+      "sequence_number": 123,
+      "last_update_id": 123,
+      "bids": [
+        { "price": "50", "quantity": "100", "total": "50" }
+      ],
+      "asks": [
+        { "price": "51", "quantity": "100", "total": "51" }
+      ]
+    }
+    ```
+
+    The SDK also reads `size` as an alias for `quantity`, and `metadata.cross_matching_enabled` (boolean).
+
+    ### `market:ltp:{marketID}` — Last traded price
+
+    Event name: `ltp` (throttled to 100ms)
+
+    ```json
+    {
+      "price": "string (cents)",
+      "volume": "string",
+      "timestamp": 1234567890
+    }
+    ```
+
+    ## Connection details
+
+    - Use Ably token auth with `authCallback` calling `POST /api/v1/auth/ably`
+    - Reconnect with exponential backoff: 1s min, 30s max
+    - On the private user channel, enter presence before subscribing (see "How to subscribe with presence" above)
+paths:
+  /api/v1/auth/login-with-signature:
+    post:
+      tags:
+      - Authentication
+      summary: Login with wallet signature
+      description: |
+        Authenticate using an EIP-712 CreateProxy wallet signature. **Required header:** `X-API-Key`.
+
+        See **Authentication** section for CreateProxy domain, message, and signature format (contract addresses, normalization).
+      operationId: loginWithSignature
+      parameters:
+      - name: X-API-Key
+        in: header
+        required: true
+        description: PRED API key
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginWithSignatureRequest'
+      responses:
+        '200':
+          description: Login successful
+          headers:
+            X-Access-Token:
+              description: JWT access token (also in response body)
+              schema:
+                type: string
+            Set-Cookie:
+              description: 'Refresh token cookie: `refresh_token=<token>; Path=/; HttpOnly; Secure; SameSite=Lax`'
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/auth/refresh/token:
+    post:
+      tags:
+      - Authentication
+      summary: Refresh access token
+      description: |
+        Refresh the access token using a refresh token. The refresh token can be sent via:
+
+        1. **Header** (preferred): `X-Refresh-Token: <refresh_token>` — checked first
+        2. **Cookie** (fallback): `refresh_token` cookie (set automatically by login endpoint)
+
+        The refresh token from the login response body (`refresh_token` field) can be sent as the `X-Refresh-Token` header.
+
+        **Token rotation:** Each refresh returns a new refresh token (via `Set-Cookie`). The old refresh token is invalidated — using it again returns 401 `REFRESH_TOKEN_ALREADY_USED`.
+
+        **Response includes:** new `access_token`, `user_id`, `proxy_wallet_address`, `is_enabled_trading`, and user profile data.
+      operationId: refreshToken
+      parameters:
+      - name: X-Refresh-Token
+        in: header
+        required: false
+        description: Refresh token from login response body (`refresh_token` field). Takes priority over
+          cookie.
+        schema:
+          type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: {}
+      responses:
+        '200':
+          description: Token refreshed
+          headers:
+            Set-Cookie:
+              description: 'New refresh token cookie (rotated): `refresh_token=<new_token>; Path=/; HttpOnly;
+                Secure; SameSite=Lax`'
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshTokenResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/market-discovery/discover:
+    get:
+      tags:
+      - Market Discovery
+      summary: Get market discovery feed
+      description: |
+        Returns discovery entries with parent market data, fixture context, team data, and markets.
+        Trading clients should call this endpoint with `verbose=true` and paginate with `limit`/`offset`
+        until `data.total` is exhausted. Recommended page size for SDK/market-maker style clients is
+        `limit=50`; avoid bursts above roughly 10 discovery requests per second.
+
+        `verbose=true` is required so `parent_market_data.parent_market_id`,
+        `parent_market_data.contract_address`, `parent_market_data.parent_market_type`,
+        `parent_market_data.parent_market_family`, and fixture metadata are included reliably.
+        Non-verbose responses can omit these fields.
+
+        Use `data.parent_markets_list[].parent_market_data.contract_address` as EIP-712
+        `verifyingContract` when signing place orders for that parent market.
+
+        Runtime eligibility convention used by market-maker style clients:
+        - require parent `parent_market_data.status == "active"`;
+        - require the target child `markets[].status == "active"`;
+        - treat child statuses such as `resolved` or `redeemed` as terminal/not quote eligible;
+        - validate external/orderbook liquidity before enabling a market for automated quoting.
+        **Public endpoint — no auth required.**
+      operationId: getAllParentMarkets
+      parameters:
+      - name: verbose
+        in: query
+        required: false
+        description: Must be true for trading clients; includes parent_market_id, contract_address, parent_market_type,
+          parent_market_family, fixture metadata, and other verbose parent fields.
+        schema:
+          type: boolean
+          default: true
+      - name: limit
+        in: query
+        required: false
+        description: Pagination limit. Recommended value for full-feed clients is 50; continue paging
+          until data.total is exhausted.
+        schema:
+          type: integer
+          default: 20
+      - name: offset
+        in: query
+        required: false
+        description: Pagination offset. Start at 0 and increment by limit for each page.
+        schema:
+          type: integer
+          default: 0
+      responses:
+        '200':
+          description: Discovery feed response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketDiscoveryDiscoverResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/market-discovery/parents/{parentMarketID}:
+    get:
+      tags:
+      - Market Discovery
+      summary: Get parent market details
+      description: |
+        Get parent market details including child market IDs and statuses.
+        Use this when you already know a parent market ID and need to confirm its current
+        parent status, child `markets[].status`, market family/type, and contract address.
+        For full-market discovery, prefer the paginated
+        `GET /api/v1/market-discovery/discover?verbose=true&limit=50&offset=0` flow.
+
+        Trading/quoting clients should require parent `status == "active"` and child
+        `markets[].status == "active"` before enabling a child market. Treat child statuses
+        such as `resolved` or `redeemed` as terminal/not quote eligible.
+        **Public endpoint — no auth required.**
+      operationId: getParentMarketDetails
+      parameters:
+      - $ref: '#/components/parameters/ParentMarketIDPath'
+      responses:
+        '200':
+          description: Parent market details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParentMarketDetailsResponse'
+        '404':
+          description: Parent market not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/order/{parentMarketID}/place:
+    post:
+      tags:
+      - Orders
+      summary: Place a new order
+      description: |
+        Place an order (limit, market, or IOC). Requires EIP-712 Order signature; see **Orders** section for domain, type hash, field meanings, and wei conversion.
+
+        **Order types:** `limit` (resting), `market` (fill at best), `ioc` (immediate-or-cancel). **Expiration:** Unix seconds; `0` = GTC. **Idempotency:** `salt` is the key; same salt returns cached response.
+
+        **Validation:** Price > 0, < 100, multiple of tick size; side long/short; quantity ≥ 5, at most 1 decimal; timestamp within 15s of server (seconds); fee_rate_bps = 0.
+      operationId: placeOrder
+      parameters:
+      - $ref: '#/components/parameters/XWalletAddress'
+      - $ref: '#/components/parameters/XProxyAddress'
+      - $ref: '#/components/parameters/ParentMarketIDPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlaceOrderRequest'
+      responses:
+        '202':
+          description: Order accepted for processing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          description: Insufficient liquidity or self-match (when not allowed)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/order/{parentMarketID}/cancel:
+    delete:
+      tags:
+      - Orders
+      summary: Cancel an order
+      description: Cancel a single open order by order ID and market ID.
+      operationId: cancelOrder
+      parameters:
+      - $ref: '#/components/parameters/XWalletAddress'
+      - $ref: '#/components/parameters/XProxyAddress'
+      - $ref: '#/components/parameters/ParentMarketIDPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelOrderRequest'
+      responses:
+        '200':
+          description: Order cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancelOrderResponse'
+        '202':
+          description: Cancellation submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancelOrderResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/order/{parentMarketID}/cancel/all:
+    delete:
+      tags:
+      - Orders
+      summary: Cancel all orders for a parent market
+      description: |
+        Cancel all open orders for a parent market. No request body required.
+      operationId: cancelAllForParent
+      parameters:
+      - $ref: '#/components/parameters/XWalletAddress'
+      - $ref: '#/components/parameters/XProxyAddress'
+      - $ref: '#/components/parameters/ParentMarketIDPath'
+      responses:
+        '200':
+          description: All orders cancelled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '202':
+          description: Cancellation submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/order/{parentMarketID}/cancel/bulk:
+    delete:
+      tags:
+      - Orders
+      summary: Bulk cancel orders for a parent market
+      description: |
+        Cancel multiple orders for a parent market. Send an array of order references.
+        If `orders` is empty, the backend fetches all open orders for this parent and cancels them.
+      operationId: cancelOrdersBulk
+      parameters:
+      - $ref: '#/components/parameters/XWalletAddress'
+      - $ref: '#/components/parameters/XProxyAddress'
+      - $ref: '#/components/parameters/ParentMarketIDPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkCancelOrdersRequest'
+      responses:
+        '200':
+          description: Bulk cancel completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkCancelOrdersResponse'
+        '202':
+          description: Bulk cancel submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkCancelOrdersResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/order/{parentMarketID}/open-orders:
+    get:
+      tags:
+      - Orders
+      summary: Get open orders for a parent market (recommended)
+      description: |
+        Returns all open orders scoped to a specific parent market.
+
+        **Recommended:** Use this endpoint for fetching open orders. It returns real-time data directly from the order service with no delay. Prefer this over `GET /api/v1/portfolio/open-orders` for accurate, up-to-date order state.
+      operationId: getOpenOrdersForParent
+      parameters:
+      - $ref: '#/components/parameters/XWalletAddress'
+      - $ref: '#/components/parameters/XProxyAddress'
+      - $ref: '#/components/parameters/ParentMarketIDPath'
+      responses:
+        '200':
+          description: Open orders for parent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenOrdersResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/order/{parentMarketID}/orderbook/{marketID}:
+    get:
+      tags:
+      - Orders
+      summary: Get order book for a market
+      description: |
+        Retrieve the order book (bids and asks) for a specific market.
+        Prices are in **cents**, sizes are in **shares**.
+      operationId: getOrderBook
+      parameters:
+      - $ref: '#/components/parameters/XWalletAddress'
+      - $ref: '#/components/parameters/XProxyAddress'
+      - $ref: '#/components/parameters/ParentMarketIDPath'
+      - name: marketID
+        in: path
+        required: true
+        description: Market ID (bytes32 hex). See **Market Discovery** for what market_id is and how to
+          get it (e.g. from GET /api/v1/market-discovery/discover).
+        schema:
+          type: string
+          pattern: ^0x[a-fA-F0-9]{64}$
+      - name: depth
+        in: query
+        required: false
+        description: Order book depth (1–100). Default 20.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: include_metadata
+        in: query
+        required: false
+        description: Include orderbook metadata (e.g. spread, mid price, cross_matching_enabled). Default
+          true.
+        schema:
+          type: boolean
+          default: true
+      responses:
+        '200':
+          description: Order book retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderBookResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Market not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /:
+    get:
+      tags:
+      - Overview
+      summary: Overview — About PRED, getting started
+      description: |
+        See the **Overview** tag description for: About PRED, getting started, X-API-Key, testing APIs, and environment configuration.
+      operationId: overview
+      responses:
+        '200':
+          description: Documentation only
+  /api/v1/portfolio/balance:
+    get:
+      tags:
+      - Portfolio
+      summary: Get account balance
+      description: Retrieve the current account balance in USD.
+      operationId: getBalance
+      parameters:
+      - $ref: '#/components/parameters/XWalletAddress'
+      - $ref: '#/components/parameters/XProxyAddress'
+      responses:
+        '200':
+          description: Balance retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BalanceResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/portfolio/positions:
+    get:
+      tags:
+      - Portfolio
+      summary: Get open positions
+      description: Retrieve all open positions across all markets.
+      operationId: getPositions
+      parameters:
+      - $ref: '#/components/parameters/XWalletAddress'
+      - $ref: '#/components/parameters/XProxyAddress'
+      responses:
+        '200':
+          description: Positions retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PositionsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/portfolio/earnings:
+    get:
+      tags:
+      - Portfolio
+      summary: Get portfolio earnings
+      description: Retrieve realized, unrealized, and total PnL for the authenticated user.
+      operationId: getEarnings
+      parameters:
+      - $ref: '#/components/parameters/XWalletAddress'
+      - $ref: '#/components/parameters/XProxyAddress'
+      responses:
+        '200':
+          description: Earnings retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EarningsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/portfolio/open-orders:
+    get:
+      tags:
+      - Portfolio
+      summary: Get open orders (portfolio — may have delays)
+      description: |
+        Retrieve open orders across all markets with optional pagination and market filter.
+
+        **Warning:** This endpoint may have significant delays in reflecting the latest order state (cancellations, fills). It is served by the portfolio service which aggregates data asynchronously.
+
+        **Recommended:** Use `GET /api/v1/order/{parentMarketID}/open-orders` instead for real-time, accurate open orders per parent market. Use this portfolio endpoint only for a cross-market overview when slight staleness is acceptable.
+      operationId: getOpenOrders
+      parameters:
+      - $ref: '#/components/parameters/XWalletAddress'
+      - $ref: '#/components/parameters/XProxyAddress'
+      - name: offset
+        in: query
+        required: false
+        description: Pagination offset (default 0)
+        schema:
+          type: integer
+          default: 0
+      - name: limit
+        in: query
+        required: false
+        description: Page size (default 100)
+        schema:
+          type: integer
+          default: 100
+      - name: market_id
+        in: query
+        required: false
+        description: Filter by market ID
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Open orders retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenOrdersResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/user/safe-approval/prepare:
+    post:
+      tags:
+      - User
+      summary: Prepare Safe approval transaction
+      description: |
+        Prepare a Safe wallet approval transaction. Send `safe_wallet_address` = your `proxy_wallet_addr` from login; sign the returned `transactionHash` with raw secp256k1 (no EIP-191); then call execute with signature and data.
+
+        See **Trading Enablement** section for full flow and mandatory re-login after execute.
+      operationId: prepareSafeApproval
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrepareSafeApprovalRequest'
+      responses:
+        '200':
+          description: Transaction data prepared
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrepareSafeApprovalResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/user/safe-approval/execute:
+    post:
+      tags:
+      - User
+      summary: Execute Safe approval transaction
+      description: |
+        Execute with the raw secp256k1 signature of `transactionHash` from prepare. See **Trading Enablement** section for mandatory re-login after this call (required for order placement).
+      operationId: executeSafeApproval
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExecuteSafeApprovalRequest'
+      responses:
+        '200':
+          description: Approval executed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExecuteSafeApprovalResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          description: Transaction execution failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/auth/ably:
+    post:
+      tags:
+      - WebSocket
+      summary: Get Ably WebSocket token
+      description: |
+        Generate an Ably token for WebSocket connections. Returns raw Ably `TokenDetails` JSON (not wrapped).
+
+        **Capabilities granted:**
+        - `private:user:<user_id>`: `[presence, subscribe]`
+        - `market:*`: `[subscribe]`
+
+        Use this token with Ably's `authCallback` for token-based auth.
+      operationId: getAblyToken
+      parameters:
+      - $ref: '#/components/parameters/XWalletAddress'
+      - $ref: '#/components/parameters/XProxyAddress'
+      responses:
+        '200':
+          description: Ably token generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AblyTokenDetails'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          description: Failed to authenticate with Ably
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    LoginWithSignatureRequest:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - wallet_address
+          - signature
+          - message
+          - nonce
+          - chain_type
+          - timestamp
+          properties:
+            wallet_address:
+              type: string
+              description: EOA wallet address
+              pattern: ^0x[a-fA-F0-9]{40}$
+            signature:
+              type: string
+              description: 'EIP-712 CreateProxy signature. Format: 0x<r><s><v> (132 hex chars), low-s
+                normalized.'
+              pattern: ^0x[a-fA-F0-9]{130}$
+            message:
+              type: string
+              description: Auth message
+            nonce:
+              type: string
+              description: Unique nonce (SDK uses nanosecond timestamp)
+            chain_type:
+              type: string
+              description: |
+                ENV-specific. Use the value for your chosen environment from the Environment configuration table.
+                Testnet: base-sepolia
+                Mainnet: base (not base-mainnet)
+              enum:
+              - base-sepolia
+              - base
+            timestamp:
+              type: integer
+              description: Unix timestamp in seconds
+            username:
+              type: string
+              description: Username (optional)
+            name:
+              type: string
+              description: Name (optional)
+            profile_picture:
+              type: string
+              format: uri
+              description: Profile picture URL (optional)
+    LoginResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            access_token:
+              type: string
+              description: JWT access token
+            refresh_token:
+              type: string
+              description: Refresh token. Send as `X-Refresh-Token` header (or use the `refresh_token`
+                cookie set by this endpoint) when calling `POST /api/v1/auth/refresh/token`.
+            data:
+              type: object
+              properties:
+                user_id:
+                  type: string
+                is_new_user:
+                  type: boolean
+                is_activated:
+                  type: boolean
+                is_new_activated:
+                  type: boolean
+                default_username:
+                  type: string
+                profile_picture:
+                  type: string
+                is_enabled_trading:
+                  type: boolean
+                  description: |
+                    Whether trading is enabled for the user's proxy wallet.
+                    If `false` or missing: complete Safe approval, then **re-login** (MANDATORY).
+                wallet_address:
+                  type: string
+                proxy_wallet_addr:
+                  type: string
+            proxy_wallet_addr:
+              type: string
+              description: Proxy (Safe) wallet address
+            wallet_address:
+              type: string
+        error:
+          $ref: '#/components/schemas/Error'
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: string
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          $ref: '#/components/schemas/Error'
+        message:
+          type: string
+        success:
+          type: boolean
+          default: false
+    RefreshTokenResponse:
+      type: object
+      description: |
+        Token refresh response. Includes new access token and user details.
+        A new refresh token is also set via `Set-Cookie` header (token rotation).
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            access_token:
+              type: string
+              description: New JWT access token
+            message:
+              type: string
+            user_id:
+              type: string
+            privy_wallet_address:
+              type: string
+            proxy_wallet_address:
+              type: string
+            is_activated:
+              type: boolean
+            default_username:
+              type: string
+            profile_picture:
+              type: string
+            is_enabled_trading:
+              type: boolean
+              description: Whether trading is enabled (reflects current state after Safe approval)
+            data:
+              type: object
+              description: Structured response for compatibility
+              properties:
+                user_id:
+                  type: string
+                is_activated:
+                  type: boolean
+                default_username:
+                  type: string
+                profile_picture:
+                  type: string
+                is_enabled_trading:
+                  type: boolean
+        error:
+          $ref: '#/components/schemas/Error'
+    MarketDiscoveryDiscoverResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            parent_markets_list:
+              type: array
+              description: Paginated list of parent-market discovery entries. Full-feed clients should
+                keep requesting pages until `offset + parent_markets_list.length >= total`.
+              items:
+                $ref: '#/components/schemas/MarketDiscoveryDiscoverItem'
+            aggregated_data:
+              type: array
+              items:
+                type: object
+                properties:
+                  canonical_name:
+                    type: string
+                  super_parent_market_volume:
+                    type: string
+            limit:
+              type: integer
+            offset:
+              type: integer
+            total:
+              type: integer
+              description: Total number of parent-market entries available across all pages.
+    MarketDiscoveryDiscoverItem:
+      type: object
+      properties:
+        league_data:
+          type: object
+          properties:
+            league_id:
+              type: string
+        parent_market_data:
+          type: object
+          description: Verbose parent market metadata. Trading clients should request `verbose=true` so
+            these fields are populated.
+          properties:
+            parent_market_id:
+              type: string
+              description: Parent market ID used in order/orderbook/cancel/open-orders path parameters.
+            contract_address:
+              type: string
+              description: EIP-712 order contract address for this parent market; use as verifyingContract
+                when signing orders.
+            parent_market_type:
+              type: string
+              description: Parent type, for example `fixture` for sports fixtures; non-fixture/generic
+                markets do not have live-score fixture metadata.
+            parent_market_family:
+              type: string
+              description: Parent market family such as moneyline, spread, total, or generic; useful for
+                family-level client config.
+            canonical_name:
+              type: string
+              description: Stable canonical parent market slug/name.
+            title:
+              type: string
+              description: Human-readable parent market title.
+            status:
+              type: string
+              description: Parent market status. Market-maker style clients should require `active`.
+            markets_open:
+              type: string
+              format: date-time
+              description: Parent market close/open-until timestamp when provided.
+            market_line:
+              type: string
+        fixture:
+          type: object
+          properties:
+            fixture_id:
+              type: string
+            game_start_time:
+              type: string
+              format: date-time
+            game_status:
+              type: string
+            home_team_id:
+              type: string
+            home_team_score:
+              type: integer
+            away_team_id:
+              type: string
+            away_team_score:
+              type: integer
+            group_by:
+              type: string
+            match_day:
+              type: integer
+            canonical_name:
+              type: string
+        team_data:
+          type: array
+          items:
+            type: object
+            properties:
+              team_id:
+                type: string
+              logo_url:
+                type: string
+              theme_color:
+                type: string
+        markets:
+          type: array
+          description: Child markets under this parent. Each child has its own market_id and status.
+          items:
+            type: object
+            properties:
+              market_id:
+                type: string
+                description: Child market ID used as `market_id` in order bodies and orderbook paths.
+              name:
+                type: string
+              team_id:
+                type: string
+              status:
+                type: string
+                description: Child market status. Require `active` for trading/quoting; treat `resolved`
+                  and `redeemed` as terminal.
+    ParentMarketDetailsResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            parent_market_data:
+              type: object
+              properties:
+                parent_market_id:
+                  type: string
+                canonical_name:
+                  type: string
+                title:
+                  type: string
+                markets_open:
+                  type: string
+                  format: date-time
+                status:
+                  type: string
+                parent_market_family:
+                  type: string
+                market_line:
+                  type: string
+                rules:
+                  type: string
+                parent_market_volume:
+                  type: string
+                contract_type:
+                  type: string
+                contract_address:
+                  type: string
+                logo_url:
+                  type: string
+                theme_color:
+                  type: string
+                parent_market_type:
+                  type: string
+            markets:
+              type: array
+              items:
+                type: object
+                properties:
+                  market_id:
+                    type: string
+                  team_id:
+                    type: string
+                  name:
+                    type: string
+                  logo_url:
+                    type: string
+                  alternate_name:
+                    type: string
+                  status:
+                    type: string
+                  tick_size:
+                    type: string
+                  rules:
+                    type: string
+                  ltp:
+                    type: string
+                  volume:
+                    type: string
+                  mid_price:
+                    type: string
+                  percentage_change:
+                    type: string
+    AblyTokenDetails:
+      type: object
+      description: Raw Ably TokenDetails JSON (not wrapped in success/data envelope)
+      properties:
+        token:
+          type: string
+          description: Ably token string
+        keyName:
+          type: string
+          description: Ably key name
+        expires:
+          type: integer
+          format: int64
+          description: Expiry time (milliseconds since Unix epoch)
+        clientId:
+          type: string
+          description: Client ID bound to this token (user_id)
+        issued:
+          type: integer
+          format: int64
+          description: Issued time (milliseconds since Unix epoch)
+        capability:
+          type: string
+          description: JSON-encoded Ably capability map
+    PlaceOrderRequest:
+      type: object
+      required:
+      - salt
+      - market_id
+      - side
+      - price
+      - quantity
+      - signature
+      - timestamp
+      properties:
+        salt:
+          type: string
+          description: Unique salt for order (idempotency key). Use '02' + 10-digit random number.
+        user_id:
+          type: string
+          description: User ID; filled from JWT if omitted.
+        market_id:
+          type: string
+          description: Market ID (bytes32 hex / questionId). See **Market Discovery** for what market_id
+            is and how to get it (e.g. from GET /api/v1/market-discovery/discover).
+          pattern: ^0x[a-fA-F0-9]{64}$
+        side:
+          type: string
+          enum:
+          - long
+          - short
+          description: 'Order side: long = YES exposure, short = NO exposure'
+        token_id:
+          type: string
+          description: Optional. Not used by order-service; omit or leave empty.
+        price:
+          type: string
+          description: Price in cents (decimal string). Must be > 0, < 100, multiple of market tick size.
+        quantity:
+          type: string
+          description: Quantity in shares (decimal string). Minimum 5; at most 1 decimal place.
+        amount:
+          type: string
+          description: 'Amount in USD. Long: (price*qty)/100. Short: ((100-price)*qty)/100. Computed if
+            omitted for limit/ioc.'
+        is_low_priority:
+          type: boolean
+          default: false
+          description: Low priority / market maker flag.
+        signature:
+          type: string
+          description: 'EIP-712 Order signature. Format: 0x<r><s><v> (132 hex chars), low-s normalized.'
+          pattern: ^0x[a-fA-F0-9]{130}$
+        type:
+          type: string
+          enum:
+          - limit
+          - market
+          - ioc
+          default: limit
+          description: limit = resting order; market = fill at best available; ioc = immediate-or-cancel
+            (fill immediately or cancel remainder).
+        timestamp:
+          type: integer
+          format: int64
+          description: Unix timestamp in **seconds** (not milliseconds). Must be within 15 seconds of
+            server time.
+        expiration:
+          type: integer
+          format: int64
+          description: Expiration as Unix timestamp in **seconds**. 0 = no expiration (GTC). If > 0 must
+            be > timestamp; values in milliseconds are rejected.
+          default: 0
+        reduce_only:
+          type: boolean
+          default: false
+        fee_rate_bps:
+          type: integer
+          description: Fee rate in basis points. Must be 0 (fees not supported).
+          default: 0
+    OrderResponse:
+      type: object
+      description: Place order response. See status enum for meanings.
+      properties:
+        status:
+          type: string
+          enum:
+          - order_created
+          - matched
+          - partial_matched
+          - open_order
+          - failed
+          description: |
+            order_created — accepted
+            matched — fully filled
+            partial_matched — partially filled
+            open_order — resting
+            failed — placement failed
+        order_id:
+          type: string
+          description: Unique order ID
+        message:
+          type: string
+    CancelOrderRequest:
+      type: object
+      required:
+      - order_id
+      - market_id
+      properties:
+        order_id:
+          type: string
+          description: Order ID to cancel
+        market_id:
+          type: string
+          description: Market ID (bytes32 hex). See **Market Discovery** for what market_id is and how
+            to get it (e.g. from GET /api/v1/market-discovery/discover).
+          pattern: ^0x[a-fA-F0-9]{64}$
+    CancelOrderResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - user_cancelled
+        order_id:
+          type: string
+        message:
+          type: string
+        success:
+          type: boolean
+    BulkCancelOrdersRequest:
+      type: object
+      properties:
+        orders:
+          type: array
+          description: Orders to cancel. If empty, cancels all open orders for the parent market.
+          items:
+            type: object
+            required:
+            - order_id
+            properties:
+              order_id:
+                type: string
+              market_id:
+                type: string
+    BulkCancelOrdersResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              order_id:
+                type: string
+              status:
+                type: string
+              message:
+                type: string
+        total_requested:
+          type: integer
+        total_unique:
+          type: integer
+        total_cancelled:
+          type: integer
+        total_failed:
+          type: integer
+    BalanceResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            balance:
+              type: string
+              description: Account balance in USD (decimal string)
+        error:
+          $ref: '#/components/schemas/Error'
+    PositionsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        positions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Position'
+        error:
+          $ref: '#/components/schemas/Error'
+    Position:
+      type: object
+      properties:
+        market_id:
+          type: string
+          description: Market ID (hex)
+        market_name:
+          type: string
+        side:
+          type: string
+          enum:
+          - long
+          - short
+        quantity:
+          type: string
+          description: Position quantity in shares
+        average_price:
+          type: string
+          description: Average entry price in cents
+        amount:
+          type: string
+          description: Position amount in USD
+    EarningsResponse:
+      type: object
+      properties:
+        user_id:
+          type: string
+          description: Authenticated user ID
+        realized_pnl:
+          type: string
+          description: Realized PnL (decimal string)
+        unrealized_pnl:
+          type: string
+          description: Unrealized PnL (decimal string)
+        total_pnl:
+          type: string
+          description: Total PnL (decimal string)
+    OpenOrdersResponse:
+      type: object
+      properties:
+        orders:
+          type: array
+          items:
+            $ref: '#/components/schemas/OpenOrder'
+    OpenOrder:
+      type: object
+      properties:
+        order_id:
+          type: string
+        market_id:
+          type: string
+        market_name:
+          type: string
+        parent_market_id:
+          type: string
+        side:
+          type: string
+          enum:
+          - long
+          - short
+        price:
+          type: string
+          description: Price in cents
+        quantity:
+          type: string
+          description: Original quantity in shares
+        remaining_quantity:
+          type: string
+          description: Remaining quantity in shares
+    OrderBookResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        bids:
+          type: array
+          description: Buy orders sorted by price descending
+          items:
+            $ref: '#/components/schemas/OrderBookLevel'
+        asks:
+          type: array
+          description: Sell orders sorted by price ascending
+          items:
+            $ref: '#/components/schemas/OrderBookLevel'
+    OrderBookLevel:
+      type: object
+      properties:
+        price:
+          type: string
+          description: Price in cents
+        size:
+          type: string
+          description: Size in shares
+    PrepareSafeApprovalRequest:
+      type: object
+      required:
+      - safe_wallet_address
+      properties:
+        safe_wallet_address:
+          type: string
+          description: Proxy wallet address from login response (proxy_wallet_addr)
+          pattern: ^0x[a-fA-F0-9]{40}$
+    PrepareSafeApprovalResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/SafeTransactionData'
+    SafeTransactionData:
+      type: object
+      properties:
+        approvalAmount:
+          type: string
+        baseGas:
+          type: string
+        chainId:
+          type: string
+        data:
+          type: string
+        gasPrice:
+          type: string
+        gasToken:
+          type: string
+        nonce:
+          type: string
+        operation:
+          type: integer
+        refundReceiver:
+          type: string
+        safeAddress:
+          type: string
+          description: Proxy wallet address
+        safeTxGas:
+          type: string
+        spenderAddress:
+          type: string
+        to:
+          type: string
+        tokenAddress:
+          type: string
+        transactionHash:
+          type: string
+          description: Hash to sign with raw secp256k1 (no EIP-191 prefix)
+        value:
+          type: string
+    ExecuteSafeApprovalRequest:
+      type: object
+      required:
+      - signature
+      - data
+      properties:
+        signature:
+          type: string
+          description: |
+            Raw secp256k1 signature of transactionHash from prepare response.
+            Format: 0x<r><s><v> (132 hex chars). No EIP-191 prefix. Low-s normalized.
+          pattern: ^0x[a-fA-F0-9]{130}$
+        data:
+          $ref: '#/components/schemas/SafeTransactionData'
+    ExecuteSafeApprovalResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            is_enabled_trading:
+              type: boolean
+              description: |
+                Trading enabled status after Safe approval.
+                **⚠️ Even when true here, you MUST call login-with-signature again to get a fresh JWT.**
+        message:
+          type: string
+        error:
+          $ref: '#/components/schemas/Error'
+    WSOrderCreatedEvent:
+      type: object
+      description: 'WS event: order-created on private:user:{userID}'
+      properties:
+        order_id:
+          type: string
+        market_id:
+          type: string
+        market_name:
+          type: string
+        parent_market_id:
+          type: string
+        parent_market_name:
+          type: string
+        side:
+          type: string
+          enum:
+          - long
+          - short
+        price:
+          type: string
+          description: Price in cents
+        quantity:
+          type: string
+          description: Quantity in shares
+        amount:
+          type: string
+          description: Amount in USD
+        remaining_quantity:
+          type: string
+        reduce_only:
+          type: boolean
+        market_maker:
+          type: boolean
+        expiration:
+          type: integer
+          format: int64
+    WSOrderCancelledEvent:
+      type: object
+      description: 'WS event: order-cancelled on private:user:{userID}'
+      properties:
+        event_type:
+          type: string
+          enum:
+          - order_cancelled
+        order_id:
+          type: string
+        timestamp:
+          type: integer
+          format: int64
+    WSOrderUpdatedEvent:
+      type: object
+      description: |
+        WS event: order-updated on private:user:{userID}.
+        Indicates order matched on-chain (fill). matched_on_chain may be false before
+        on-chain confirmation; treat as a fill regardless. Position from API may not
+        yet reflect the impact.
+
+        Alternate payload shapes may include: market_id, parent_market_id, side, price,
+        quantity fields, or nested "order" object, or alternate keys (order_side,
+        order_price, order_quantity).
+      properties:
+        event_type:
+          type: string
+          enum:
+          - order_matched_on_chain
+        order_id:
+          type: string
+        market_id:
+          type: string
+        parent_market_id:
+          type: string
+        side:
+          type: string
+          enum:
+          - long
+          - short
+        price:
+          type: string
+        quantity:
+          type: string
+        remaining_quantity:
+          type: string
+        filled_quantity:
+          type: string
+        matched_on_chain:
+          type: boolean
+        timestamp:
+          type: integer
+          format: int64
+    WSOrderBookSnapshot:
+      type: object
+      description: 'WS event: orderbook on market:orderbook:{marketID}. Throttled to 100ms.'
+      properties:
+        market_id:
+          type: string
+        last_updated_at:
+          type: string
+          format: date-time
+        sequence_number:
+          type: integer
+          format: int64
+        last_update_id:
+          type: integer
+          format: int64
+        bids:
+          type: array
+          items:
+            type: object
+            properties:
+              price:
+                type: string
+                description: Price in cents
+              quantity:
+                type: string
+                description: Quantity in shares
+              total:
+                type: string
+                description: Total value
+        asks:
+          type: array
+          items:
+            type: object
+            properties:
+              price:
+                type: string
+              quantity:
+                type: string
+              total:
+                type: string
+    WSLastTradedPrice:
+      type: object
+      description: 'WS event: ltp on market:ltp:{marketID}. Throttled to 100ms.'
+      properties:
+        price:
+          type: string
+          description: Last traded price in cents
+        volume:
+          type: string
+        timestamp:
+          type: integer
+          format: int64
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Authentication required or failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token from login endpoint
+  parameters:
+    ParentMarketIDPath:
+      name: parentMarketID
+      in: path
+      required: true
+      description: Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id
+        is and how to get it (e.g. from GET /api/v1/market-discovery/discover).
+      schema:
+        type: string
+        pattern: ^0x[a-fA-F0-9]{64}$
+    XWalletAddress:
+      name: X-Wallet-Address
+      in: header
+      required: true
+      description: Your EOA wallet address
+      schema:
+        type: string
+        pattern: ^0x[a-fA-F0-9]{40}$
+    XProxyAddress:
+      name: X-Proxy-Address
+      in: header
+      required: true
+      description: Your proxy wallet address (from login response)
+      schema:
+        type: string
+        pattern: ^0x[a-fA-F0-9]{40}$

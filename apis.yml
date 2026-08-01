@@ -1,26 +1,851 @@
 aid: pred
 name: Pred
-description: 'Pred is a company surfaced as a portfolio company of accel and added to the API Evangelist
-  network as a stub for enrichment. Sector: fintech. This profile is a lead awaiting the enrichment pipeline.'
+description: >-
+  Pred (PRED) is a fully decentralized, peer-to-peer sports prediction exchange
+  built on Base, Coinbase's Ethereum Layer 2 network. Rather than a traditional
+  sportsbook, Pred runs a real-time central limit order book where traders take
+  LONG (YES) and SHORT (NO) positions on sporting outcomes priced between 0.00
+  and 1.00 USDC, and prices emerge from live supply and demand. Users keep full
+  self-custody of collateral through per-user Gnosis Safe proxy wallets and
+  authorize every order with EIP-712 signatures, with on-chain settlement of
+  USDC on Base. Winning traders are welcome with no account limits, sub-200ms
+  order execution and spreads under 2%. Pred publishes a documented HTTP trading
+  API (login-with-signature auth, market discovery, order placement/cancellation,
+  portfolio) plus an Ably WebSocket stream for real-time orderbook and order
+  events. Initial markets cover the English Premier League and NBA. The company
+  has raised $2.5M backed by Accel, Coinbase Ventures and Reverie.
 url: https://raw.githubusercontent.com/api-evangelist/pred/refs/heads/main/apis.yml
+accessModel:
+  pricing: unknown
+  onboarding: open
+  trial: false
+  try_now: false
+  public: true
+  label: Open access
+  confidence: medium
+  source:
+  - authentication
+  generated: '2026-07-22'
+  method: derived
+image: https://public-assets.pred.app/banners/image.png
 x-type: company
 x-source: vc-portfolio
 x-backed-by:
 - accel
-x-tier: stub
-x-tier-reason: portfolio-lead
+- coinbase-ventures
+- reverie
+x-tier: profiled
+x-tier-reason: enriched-from-public-api
 specificationVersion: '0.20'
 created: '2026-07-17'
-modified: '2026-07-17'
+modified: '2026-07-20'
 tags:
 - Company
 - Fintech
-apis: []
+- Prediction Markets
+- Sports
+- Trading
+- Exchange
+- Web3
+- Blockchain
+- Base
+- USDC
 maintainers:
 - FN: Kin Lane
   email: kin@apievangelist.com
 - FN: APIs.json
   email: info@apis.io
+apis:
+- aid: pred:pred-authentication-api
+  name: Pred Authentication API
+  description: >-
+    Required headers, token refresh, and EIP-712 CreateProxy signature for login. For overview, getting
+    started, and environment configuration, see **Overview**.
+
+
+    ## Required headers
+
+
+    - `Authorization: Bearer <token>`
+      (for authenticated endpoints)
+    - `X-API-Key: <api_key>`
+      (required for login-with-signature only)
+    - `X-Wallet-Address: <wallet_address>`
+      (for order and portfolio endpoints)
+    - `X-Proxy-Address: <proxy_wallet_address>`
+      (for order and portfolio endpoints)
+
+    **Token refresh:** Access tokens are automatically refreshed by the SDK whenever their remaining lifetime
+    drops below the configured threshold. The default threshold is **5 minutes**, and can be overridden
+    via the `RefreshThresholdSeconds` client option.
+
+
+    ## EIP-712 login signature — CreateProxy
+
+
+    Format: `0x<r><s><v>` (132 hex characters). Low-s normalized: `s <= curveOrderHalf`.
+
+
+    **Domain (NO version field):** All values below are ENV-specific; use the row for your chosen environment
+    (see Environment configuration in **Overview**).
+
+    ```
+
+    EIP712Domain type: "EIP712Domain(string name,uint256 chainId,address verifyingContract)"
+
+    name: "Pred Contract Proxy Factory"
+
+    chainId:        <Chain ID from environment table — Testnet 84532, Mainnet 8453>
+
+    verifyingContract: <Login Contract from environment table>
+
+    ```
+
+
+    **Message:**
+
+    ```
+
+    CreateProxy type: "CreateProxy(address paymentToken,uint256 payment,address paymentReceiver)"
+
+    paymentToken: 0x0000000000000000000000000000000000000000
+
+    payment: 0
+
+    paymentReceiver: 0x0000000000000000000000000000000000000000
+
+    ```
+
+
+    **Normalization constants:**
+
+    - `curveOrder = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141`
+
+    - `curveOrderHalf = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0`
+  humanURL: https://pred-1.gitbook.io/pred-docs/api-reference/overview
+  baseURL: https://www.pred.app
+  tags:
+  - Authentication
+  properties:
+  - type: OpenAPI
+    url: openapi/pred-authentication-api-openapi.yml
+  - type: APIReference
+    url: https://pred-1.gitbook.io/pred-docs/api-reference/overview
+  - type: Authentication
+    url: https://pred-1.gitbook.io/pred-docs/api-reference/authentication
+- aid: pred:pred-market-discovery-api
+  name: Pred Market Discovery API
+  description: >-
+    Market information and discovery (public; no auth). Use this section to understand **parent_market_id**
+    and **market_id** and to list all markets.
+
+
+    ## What are parent_market_id and market_id?
+
+
+    - **parent_market_id:** Identifies a parent market (e.g. a fixture or event). It groups one or more
+    child markets. Order and orderbook paths are scoped by parent (e.g. `GET /api/v1/order/{parentMarketID}/orderbook/{marketID}`).
+    Cancel and open-orders endpoints are also per parent.
+
+    - **market_id:** Identifies a specific (child) market within a parent (e.g. one outcome: Team A, Team
+    B, or Draw). Used in place order body (`market_id`), orderbook path (`marketID`), and cancel body.
+    Each parent can have multiple child markets; each child has its own `market_id`.
+
+
+    You need both when placing orders (parent in the path, market_id in the body) and when fetching orderbooks
+    (parent and market in the path).
+
+
+    ## Getting parent_market_id and market_id
+
+
+    **Get all markets:** Call `GET /api/v1/market-discovery/discover?verbose=true&limit=50&offset=0`,
+    then continue paging with `offset += limit` until all `data.total` rows are consumed. `verbose=true`
+    is required for the trading-critical fields that non-verbose responses can omit: `parent_market_data.parent_market_id`,
+    `parent_market_data.contract_address`, `parent_market_data.parent_market_type`, `parent_market_data.parent_market_family`,
+    and fixture fields such as `fixture.fixture_id` and `fixture.game_start_time`. The response shape
+    is `data.parent_markets_list[]`, where each entry has `parent_market_data`, optional `fixture`, optional
+    `team_data`, and child `markets[]`.
+
+
+    **Runtime eligibility used by market-maker style clients:** first filter your own configured markets
+    to `active`; then require the discovered parent row to have `parent_market_data.status == "active"`;
+    then require the specific child row in `markets[]` to have `status == "active"`. Child statuses such
+    as `resolved` or `redeemed` are terminal and should be treated as not quote/trade eligible. For market
+    makers, also validate the Polymarket/PRED orderbook or external liquidity source for the child before
+    enabling quoting.
+
+
+    **Important field mapping:** use `parent_market_data.parent_market_id` as the parent path parameter,
+    `markets[].market_id` as the child `market_id`, `parent_market_data.contract_address` as the EIP-712
+    `verifyingContract`, `parent_market_data.parent_market_family` for family-level config, `parent_market_data.parent_market_type`
+    to distinguish fixtures from generic/futures markets, and `fixture.game_start_time` for fixture/live-window
+    logic.
+
+
+    To get details for a single parent (including its child market IDs and statuses), call `GET /api/v1/market-discovery/parents/{parentMarketID}`.
+
+
+    ## Endpoints
+
+
+    - `GET /api/v1/market-discovery/discover?verbose=true&limit=50&offset=0` — paginated discovery feed
+    for parent markets, child markets, contract addresses, market family/type, and fixture context.
+
+    - `GET /api/v1/market-discovery/parents/{parentMarketID}` — details for one parent, including child
+    markets.
+  humanURL: https://pred-1.gitbook.io/pred-docs/api-reference/overview
+  baseURL: https://www.pred.app
+  tags:
+  - Market Discovery
+  properties:
+  - type: OpenAPI
+    url: openapi/pred-market-discovery-api-openapi.yml
+  - type: APIReference
+    url: https://pred-1.gitbook.io/pred-docs/api-reference/overview
+  - type: Authentication
+    url: https://pred-1.gitbook.io/pred-docs/api-reference/authentication
+- aid: pred:pred-orders-api
+  name: Pred Orders API
+  description: >-
+    Order placement, cancellation, and management endpoints.
+
+
+    ## EIP-712 order signature
+
+
+    All orders must be signed using EIP-712. Format: `0x<r><s><v>` (132 hex characters), low-s normalized.
+
+
+    **Domain (HAS version field):** `chainId` is ENV-specific. `verifyingContract` must come from market
+    discovery for the specific parent market.
+
+    ```
+
+    EIP712Domain type: "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
+
+    name: "Pred CTF Exchange"
+
+    version: "1"
+
+    chainId:        <Chain ID from environment table — Testnet 84532, Mainnet 8453>
+
+    verifyingContract: <parent_market_data.contract_address from discovery for this parent market>
+
+    ```
+
+
+    **Order contract source (MANDATORY):** Use `parent_market_data.contract_address` from market discovery
+    for the target parent market. Do not assume one static contract per environment; markets can have
+    different order contract addresses.
+
+
+    **Order type (FIELD ORDER IS CRITICAL):**
+
+    ```
+
+    "Order(uint256 salt,address maker,address signer,address taker,uint256 price,uint256 quantity,uint256
+    expiration,uint256 nonce,bytes32 questionId,uint256 feeRateBps,uint8 intent,uint8 signatureType)"
+
+    ```
+
+
+    **Field meanings:**
+
+    - `salt`: `"02"` + 10-digit random number (e.g. `"020123456789"`); stringified integer
+
+    - `maker`: proxy wallet address (from login `proxy_wallet_addr`)
+
+    - `signer`: EOA wallet address
+
+    - `taker`: `0x0000000000000000000000000000000000000000` (always zero)
+
+    - `price`: wei-scaled = `(priceCents / 100) * 1e6` (e.g. 55 cents → 550000; not `55 * 1e6`)
+
+    - `quantity`: wei-scaled = `quantity * 1e6` (e.g. 100 shares → 100000000)
+
+    - `expiration`: Unix seconds; `0` = GTC
+
+    - `nonce`: `0` (always)
+
+    - `questionId`: market ID as bytes32; left-pad with zeros if hex &lt; 64 chars
+
+    - `feeRateBps`: `0` (default)
+
+    - `intent`: LONG = `0`, SHORT = `1` (uint8)
+
+    - `signatureType`: `2` (always; uint8)
+
+
+    ## Cross-matching
+
+
+    Cross-matching applies only **across child markets of the same parent market** (e.g. a parent with
+    3-outcome markets: Team A, Team B, Draw). It is enabled when the parent is configured for it.
+
+
+    **When it applies:** A key validity condition — **Long orders summing to 100c across all markets of
+    a cross-match–enabled parent form a valid match** (e.g. Long 25 in A + Long 25 in B + Long 50 in C
+    = 100c).
+
+
+    **How it works:** Orders match across child markets by combining liquidity from peer (sibling) markets
+    into synthetic bid/ask levels. For a given child market, synthetic *Short* levels are derived from
+    *Long* orders in peer child markets (e.g. Long 25 in B + Long 25 in C + Long 25 in D → synthetic Short
+    at 75 for market A). An incoming Long order in A can match against these synthetic Short levels; execution
+    is against the underlying peer Long orders. Similarly, synthetic *Long* levels can be built from *Short*
+    orders in peer child markets; an incoming Short order can match against them.
+
+
+    **Self-match:** Self-match is **allowed** when cross-matching is involved: the same user can match
+    against their own liquidity **across different child markets within the same parent**. For example,
+    your Long orders in two outcomes can provide synthetic liquidity that your Short order in the third
+    outcome matches against. This is intentional and valid for cross-match–enabled parents. Self-match
+    *within* the same market may be restricted; self-match *across* markets in the same parent is allowed.
+
+
+    **Implications for API users:**
+
+    - Orderbook responses may include synthetic levels; orderbook metadata can indicate `cross_matching_enabled`
+    (e.g. in WebSocket orderbook payloads).
+
+    - Placing Long orders in multiple child markets can create combined liquidity (e.g. summing to 100c
+    Long across the parent's markets is a valid match). A Short order in another child market may match—including
+    self-match—against that liquidity.
+
+    - 422 / validation may still apply for other liquidity or validation reasons.
+
+
+    **Example:** Long 25 in markets B, C, D → synthetic Short 75 for market A; or Long 25+25+50 across
+    A, B, C = 100c valid match.
+
+
+    ## Units
+
+
+    - `price`: **cents** (e.g. 55.0 = $0.55)
+
+    - `quantity`: **shares**
+
+    - `amount`: **USD**
+
+    - `fee_rate_bps`: **basis points** (default 0)
+
+    - `timestamp`: **Unix seconds** (in place order payload; within 15s of server time)
+  humanURL: https://pred-1.gitbook.io/pred-docs/api-reference/overview
+  baseURL: https://www.pred.app
+  tags:
+  - Orders
+  properties:
+  - type: OpenAPI
+    url: openapi/pred-orders-api-openapi.yml
+  - type: APIReference
+    url: https://pred-1.gitbook.io/pred-docs/api-reference/overview
+  - type: Authentication
+    url: https://pred-1.gitbook.io/pred-docs/api-reference/authentication
+- aid: pred:pred-overview-api
+  name: Pred Overview API
+  description: >-
+    ## About PRED
+
+
+    PRED is a fully decentralized prediction market platform built on Base (Ethereum L2), enabling users
+    to trade on real-world events with LONG and SHORT positions—similar to perpetual futures trading.
+
+
+    **LONG positions** profit when the event occurs (YES outcome), while **SHORT positions** profit when
+    it doesn't (NO outcome). PRED uses a decentralized architecture where users maintain full custody
+    of their funds through Gnosis Safe proxy wallets, requiring cryptographic signatures (EIP-712) for
+    every order.
+
+
+    On first use, the platform automatically creates a Gnosis Safe proxy wallet for each user and requires
+    funding it with USDC. All orders are signed by your EOA (Externally Owned Account) to authorize the
+    proxy wallet to execute trades.
+
+
+    ## Getting started
+
+
+    **Step 1:** Call `POST /api/v1/auth/login-with-signature` with `X-API-Key` header and EIP-712 CreateProxy
+    signature. Save from the response:
+
+    - `access_token`
+
+    - `refresh_token`
+
+    - `proxy_wallet_addr`
+
+    - `user_id`
+
+    - `is_enabled_trading`
+
+
+    **Step 1b (if `is_enabled_trading` is `false` or missing):** Do these in order — (a) `POST /api/v1/user/safe-approval/prepare`
+    with `safe_wallet_address = proxy_wallet_addr`; (b) Sign the returned `transactionHash` using raw
+    secp256k1 (no EIP-191 prefix); (c) `POST /api/v1/user/safe-approval/execute` with `{ signature, data
+    }`; (d) **MANDATORY: Call `POST /api/v1/auth/login-with-signature` again** to get a fresh JWT with
+    `is_enabled_trading=true`. Without this re-login, order placement will fail.
+
+
+    **Before trading:** discover valid parent/child market IDs from `GET /api/v1/market-discovery/discover?verbose=true&limit=50&offset=0`.
+    Page with `offset += limit` until `data.total` is exhausted. Use only rows where `parent_market_data.status
+    == "active"` and the child `markets[].status == "active"`; treat terminal child statuses such as `resolved`
+    or `redeemed` as not quote/trade eligible. `verbose=true` is required for the fields most trading
+    clients need: `parent_market_data.parent_market_id`, `parent_market_data.contract_address`, `parent_market_data.parent_market_type`,
+    `parent_market_data.parent_market_family`, and fixture metadata. The order contract for signatures
+    must come from the discovered parent row.
+
+
+    **Step 2:** `GET /api/v1/order/{parentMarketID}/orderbook/{marketID}` — prices in cents, sizes in
+    shares.
+
+
+    **Step 3:** `POST /api/v1/order/{parentMarketID}/place` with EIP-712 Order signature. Amount: Long
+    = `(price*qty)/100`, Short = `((100-price)*qty)/100`.
+
+
+    **Step 4:** `GET /api/v1/portfolio/positions`
+
+
+    **Step 5:** `GET /api/v1/order/{parentMarketID}/open-orders` (recommended, real-time)
+
+
+    **Step 6:** `DELETE /api/v1/order/{parentMarketID}/cancel`
+
+
+    For login signature details (CreateProxy domain, message, normalization), see **Authentication**.
+
+
+    For what `parent_market_id` and `market_id` are and how to obtain them, see **Market Discovery**.
+
+
+    ## X-API-Key
+
+
+    The `X-API-Key` header is **required** to use PRED's login-with-signature endpoint (`POST /api/v1/auth/login-with-signature`).
+    Please reach out to PRED to request an API key.
+
+
+    ## Testing APIs from this UI
+
+
+    **Method 1 — Scalar client (recommended):** Click **Try it** on any endpoint; in the modal that opens,
+    click **Open API client**. This opens the Scalar API client in a new context where you can send requests
+    without CORS issues.
+
+
+    **Method 2 — Disable CORS in browser:** Calling the API directly from the "Try it" UI in this documentation
+    may fail with **CORS errors** (browsers block cross-origin requests by default). To test from here,
+    disable CORS in your browser.
+
+
+    ### Safari — disable cross-origin restrictions
+
+
+    Safari is the only major browser with a native menu toggle that does not require restarting or using
+    the command line.
+
+
+    1. **Enable Develop menu:** Go to **Safari > Settings > Advanced** and check **"Show features for
+    web developers"**.
+
+    2. **Disable restrictions:** In the **Develop** menu at the top, select **Disable Cross-Origin Restrictions**.
+
+    3. **Refresh** the documentation page for the change to take effect.
+
+
+    (For other browsers, use their developer-mode or extension options to disable CORS for this origin,
+    or call the API from your own app or a tool like curl.)
+
+
+    ## Environment configuration
+
+
+    **All of the following are environment-specific.** Choose **Testnet** or **Mainnet** first; then use
+    the values from that row for base URL, chain ID, and chain type (login body).
+
+
+    **IMPORTANT for order signatures:** do **not** hardcode order contract from this table when placing
+    orders. For each parent market, use `parent_market_data.contract_address` from market discovery (`GET
+    /api/v1/market-discovery/discover?verbose=true&limit=50&offset=0` or `GET /api/v1/market-discovery/parents/{parentMarketID}`)
+    as the EIP-712 `verifyingContract`. Different markets can use different order contract addresses.
+
+
+    | Environment | Base URL (ENV-specific) | Chain ID (ENV-specific) | Chain Type login body (ENV-specific)
+    | Login Contract (ENV-specific) | Order Contract (ENV-specific) |
+
+    |-------------|------------------------|-------------------------|--------------------------------------|------------------------------|------------------------------|
+
+    | **Testnet** | `https://testnet.pred.app` | 84532 | `base-sepolia` | `0x306b5C979b812BD6eE6767043A24c5D8870e292A`
+    | `0xc76DC1c16E672f04b8faD103269E7474FA620a7B` |
+
+    | **Mainnet** | `https://www.pred.app` | 8453 | `base` | `0xA077e7aaBF2e3c0155F83789e95f46602D03F7f0`
+    | `0x1938Af63B717B80ea62ccB4CCBf799F8a28dEFB0` |
+
+
+    **Chain type in login body:**
+
+    - Testnet: `base-sepolia`
+
+    - Mainnet: `base` (not `base-mainnet`)
+
+
+    ## How to deposit funds to wallet
+
+
+    Send **USDC on Base** to your **proxy_wallet_address** (returned in the response from `POST /api/v1/auth/login-with-signature`).
+    The proxy wallet is the Gnosis Safe that holds your trading collateral; all orders are executed from
+    this wallet.
+
+
+    **Trial run:** Send 5 USDC (or any minimal amount) as a test. Then place a trade, get it matched,
+    and confirm a position is created (e.g. via `GET /api/v1/portfolio/positions`). This end-to-end flow
+    verifies funding, login, order placement, and position tracking.
+  humanURL: https://pred-1.gitbook.io/pred-docs/api-reference/overview
+  baseURL: https://www.pred.app
+  tags:
+  - Overview
+  properties:
+  - type: OpenAPI
+    url: openapi/pred-overview-api-openapi.yml
+  - type: APIReference
+    url: https://pred-1.gitbook.io/pred-docs/api-reference/overview
+  - type: Authentication
+    url: https://pred-1.gitbook.io/pred-docs/api-reference/authentication
+- aid: pred:pred-portfolio-api
+  name: Pred Portfolio API
+  description: >-
+    Portfolio, balance, positions, and open orders.
+
+
+    **Endpoints:**
+
+    - Balance: `GET /api/v1/portfolio/balance`
+
+    - Positions: `GET /api/v1/portfolio/positions`
+
+    - Earnings: `GET /api/v1/portfolio/earnings`
+
+    - Open orders: `GET /api/v1/portfolio/open-orders` (optional pagination)
+
+    Require `Authorization`, `X-Wallet-Address`, `X-Proxy-Address`. For real-time open orders per market,
+    prefer `GET /api/v1/order/{parentMarketID}/open-orders`; portfolio open-orders can have significant
+    delays.
+  humanURL: https://pred-1.gitbook.io/pred-docs/api-reference/overview
+  baseURL: https://www.pred.app
+  tags:
+  - Portfolio
+  properties:
+  - type: OpenAPI
+    url: openapi/pred-portfolio-api-openapi.yml
+  - type: APIReference
+    url: https://pred-1.gitbook.io/pred-docs/api-reference/overview
+  - type: Authentication
+    url: https://pred-1.gitbook.io/pred-docs/api-reference/authentication
+- aid: pred:pred-user-api
+  name: Pred User API
+  description: >-
+    Safe approval endpoints for enabling trading on your proxy wallet.
+
+
+    ## Safe approval signature — raw secp256k1
+
+
+    - Sign the `transactionHash` from prepare response **directly** (raw secp256k1)
+
+    - **No EIP-191 prefix** / no `personal_sign`
+
+    - Format: `0x<r><s><v>` (132 hex chars) with low-s normalization
+
+    - `v` normalized to 27 or 28
+
+
+    **MANDATORY: After completing Safe approval (prepare, sign, execute), you MUST call `POST /api/v1/auth/login-with-signature`
+    again to get a fresh JWT with `is_enabled_trading=true`. Without this re-login, order placement/cancellation
+    will fail with "trading not enabled". A token refresh alone is NOT sufficient.**
+  humanURL: https://pred-1.gitbook.io/pred-docs/api-reference/overview
+  baseURL: https://www.pred.app
+  tags:
+  - User
+  properties:
+  - type: OpenAPI
+    url: openapi/pred-user-api-openapi.yml
+  - type: APIReference
+    url: https://pred-1.gitbook.io/pred-docs/api-reference/overview
+  - type: Authentication
+    url: https://pred-1.gitbook.io/pred-docs/api-reference/authentication
+- aid: pred:pred-websocket-api
+  name: Pred WebSocket API
+  description: >-
+    PRED uses [Ably](https://ably.com/) for real-time WebSocket data. Use Ably's token auth with `POST
+    /api/v1/auth/ably` as your `authCallback`.
+
+
+    ## Token auth
+
+
+    Call `POST /api/v1/auth/ably` to get raw Ably `TokenDetails` JSON:
+
+
+    ```json
+
+    {
+      "token": "ably-token-string",
+      "keyName": "xxxxx.xxxxx",
+      "clientId": "user-uuid",
+      "capability": "{\"private:user:user-uuid\":[\"presence\",\"subscribe\"],\"market:*\":[\"subscribe\"]}",
+      "expires": 1700000000000,
+      "issued": 1699996400000
+    }
+
+    ```
+
+
+    **Capabilities granted:**
+
+    - Channel `private:user:<user_id>`: `presence`, `subscribe`
+
+    - Channel `market:*`: `subscribe`
+
+
+    ## Private user channel: `private:user:{userID}`
+
+
+    - **Authenticated**: you can only subscribe to your own `user_id` channel
+
+    - **Must subscribe with Presence** (see below) — PRED only pushes events to clients that have entered
+    presence on this channel
+
+    - `user_id` comes from the login response
+
+
+    ## How to subscribe with presence
+
+
+    For the private user channel, you must **enter presence** before subscribing; otherwise PRED does
+    not deliver order events. Use Ably's presence API in this order:
+
+
+    1. Obtain a token: call `POST /api/v1/auth/ably` with `Authorization: Bearer <access_token>` (and
+    optionally `X-Wallet-Address`, `X-Proxy-Address`). Use the returned body as Ably's token (e.g. in
+    `authCallback`).
+
+    2. Connect to Ably with that token (e.g. `ably.NewRealtime` with `authCallback` that returns the token).
+
+    3. Resolve the channel name for your user (e.g. `private:user:<user_id>` from login; the token's capability
+    may also indicate the channel).
+
+    4. Get the channel: `channel := realtime.Channels.Get(channelName)`.
+
+    5. **Enter presence** on the channel: call `channel.Presence.Enter(ctx, data)` with a small payload
+    (e.g. `map[string]string{"source": "your-app"}`). This step is required; PRED only sends events to
+    clients that have entered presence.
+
+    6. Subscribe to messages: call `channel.SubscribeAll(ctx, messageHandler)` (or `channel.Subscribe(ctx,
+    eventName, handler)` for specific events). Handle `order-created`, `order-cancelled`, `order-updated`
+    (and optionally `order-adjusted` if supported).
+
+
+    If you subscribe without entering presence first, you will not receive order events on the private
+    user channel.
+
+
+    **Events:**
+
+
+    ### `order-created` — New limit order placed
+
+
+    ```json
+
+    {
+      "order_id": "string",
+      "market_id": "string",
+      "market_name": "string",
+      "parent_market_id": "string",
+      "parent_market_name": "string",
+      "side": "long | short",
+      "price": "string (cents)",
+      "quantity": "string (shares)",
+      "amount": "string (USD)",
+      "remaining_quantity": "string",
+      "reduce_only": false,
+      "market_maker": false,
+      "expiration": 1234567890
+    }
+
+    ```
+
+
+    ### `order-cancelled` — Order cancelled by user or system
+
+
+    ```json
+
+    {
+      "event_type": "order_cancelled",
+      "order_id": "string",
+      "timestamp": 1234567890
+    }
+
+    ```
+
+
+    ### `order-updated` — Order matched on-chain (fully or partially filled)
+
+
+    ```json
+
+    {
+      "event_type": "order_matched_on_chain",
+      "order_id": "string",
+      "remaining_quantity": "string",
+      "filled_quantity": "string",
+      "timestamp": 1234567890
+    }
+
+    ```
+
+
+    Note: `matched_on_chain` may be `false` before confirmation; treat as a fill and react. Position from
+    API may not reflect the impact yet.
+
+
+    The SDK also handles alternate payload shapes: fields like `order_side`, `order_price`, `order_quantity`,
+    or a nested `order` object with `side`, `price`, `quantity`. Additional fields that may appear: `market_id`,
+    `parent_market_id`, `side`, `price`, `quantity`.
+
+
+    ## Public market channels
+
+
+    ### `market:orderbook:{marketID}` — Order book snapshot
+
+
+    Event name: `orderbook` (throttled to 100ms)
+
+
+    ```json
+
+    {
+      "market_id": "string",
+      "last_updated_at": "2024-01-01T00:00:00Z",
+      "sequence_number": 123,
+      "last_update_id": 123,
+      "bids": [
+        { "price": "50", "quantity": "100", "total": "50" }
+      ],
+      "asks": [
+        { "price": "51", "quantity": "100", "total": "51" }
+      ]
+    }
+
+    ```
+
+
+    The SDK also reads `size` as an alias for `quantity`, and `metadata.cross_matching_enabled` (boolean).
+
+
+    ### `market:ltp:{marketID}` — Last traded price
+
+
+    Event name: `ltp` (throttled to 100ms)
+
+
+    ```json
+
+    {
+      "price": "string (cents)",
+      "volume": "string",
+      "timestamp": 1234567890
+    }
+
+    ```
+
+
+    ## Connection details
+
+
+    - Use Ably token auth with `authCallback` calling `POST /api/v1/auth/ably`
+
+    - Reconnect with exponential backoff: 1s min, 30s max
+
+    - On the private user channel, enter presence before subscribing (see "How to subscribe with presence"
+    above)
+  humanURL: https://pred-1.gitbook.io/pred-docs/api-reference/overview
+  baseURL: https://www.pred.app
+  tags:
+  - WebSocket
+  properties:
+  - type: OpenAPI
+    url: openapi/pred-websocket-api-openapi.yml
+  - type: APIReference
+    url: https://pred-1.gitbook.io/pred-docs/api-reference/overview
+  - type: Authentication
+    url: https://pred-1.gitbook.io/pred-docs/api-reference/authentication
 common:
+- type: DomainSecurity
+  url: security/pred-domain-security.yml
+- type: AgenticAccess
+  url: agentic-access/pred-agentic-access.yml
+- type: Authentication
+  url: authentication/pred-authentication.yml
 - type: Website
   url: https://www.pred.app/
+- type: Documentation
+  url: https://pred-1.gitbook.io/pred-docs
+- type: APIReference
+  url: https://pred-1.gitbook.io/pred-docs/api-reference/overview
+- type: GettingStarted
+  url: https://pred-1.gitbook.io/pred-docs/getting-started/core-concepts
+- type: SignUp
+  url: https://pred-1.gitbook.io/pred-docs/getting-started/signup
+- type: Pricing
+  url: https://pred-1.gitbook.io/pred-docs/trading/fees
+- type: Blog
+  url: https://game.pred.app/
+- type: BlogRSS
+  url: https://game.pred.app/rss/
+- type: Support
+  url: https://pred-1.gitbook.io/pred-docs/support/contact-us
+- type: TermsOfService
+  url: https://www.pred.app/terms-of-use
+- type: PrivacyPolicy
+  url: https://www.pred.app/privacy-policy
+- type: LLMsTxt
+  url: llms/pred-llms.txt
+- type: Conventions
+  url: conventions/pred-conventions.yml
+- type: ErrorCatalog
+  url: errors/pred-problem-types.yml
+- type: Lifecycle
+  url: lifecycle/pred-lifecycle.yml
+- type: Conformance
+  url: conformance/pred-conformance.yml
+- type: DataModel
+  url: data-model/pred-data-model.yml
+- type: MCPServer
+  url: mcp/pred-mcp.yml
+- type: Overlay
+  url: overlays/pred-openapi-overlay.yaml
+- type: Sandbox
+  url: sandbox/pred-sandbox.yml
+- type: AsyncAPI
+  url: asyncapi/pred-realtime-asyncapi.yml
+- type: AgentSkill
+  url: skills/_index.yml
+- type: Arazzo
+  name: PRED trading workflow
+  url: arazzo/pred-trading.yml
+- type: X
+  url: https://x.com/predofficial
+- type: Discord
+  url: https://discord.gg/3gwsAAzEsp
+- type: Telegram
+  url: https://t.me/+eZ8oAUDwn7Q3Zjg9
+x-enrichment:
+  date: '2026-07-20'
+  status: enriched
+  artifacts_added: 20
+  pass: local-v1

@@ -1,0 +1,24 @@
+generated: '2026-07-20'
+method: searched
+source: openapi/pred-openapi.yml + https://pred-1.gitbook.io/pred-docs/api-reference/authentication
+format: custom-envelope
+envelope: '{ success: false, message, error: { code, message, details } }'
+note: Errors use a custom JSON envelope (not RFC 9457 problem+json).
+problems:
+- status: 400
+  ref: BadRequest
+  title: Invalid request
+  source_operation: openapi/pred-openapi.yml#loginWithSignature
+- status: 401
+  ref: Unauthorized
+  title: Authentication required or failed
+  source_operation: openapi/pred-openapi.yml#loginWithSignature
+documented_codes:
+- code: REFRESH_TOKEN_ALREADY_USED
+  status: 401
+  meaning: A rotated refresh token was reused; each refresh invalidates the prior refresh token.
+  remediation: Use the newest refresh token returned by the last refresh/login; re-login if lost.
+- code: TRADING_NOT_ENABLED
+  status: 400
+  meaning: Order placement/cancellation attempted before Safe approval + mandatory re-login.
+  remediation: Run safe-approval prepare/execute then call login-with-signature again for a JWT with is_enabled_trading=true.

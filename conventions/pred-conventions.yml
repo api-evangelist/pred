@@ -1,0 +1,44 @@
+generated: '2026-07-20'
+method: searched
+source: https://pred-1.gitbook.io/pred-docs/api-reference/overview
+authentication:
+  style: JWT bearer + partner X-API-Key (login) + EIP-712 wallet signatures
+  context_headers:
+  - X-Wallet-Address
+  - X-Proxy-Address
+  see: authentication/pred-authentication.yml
+idempotency:
+  supported: false
+  note: No HTTP Idempotency-Key. Order uniqueness/replay-safety is enforced on-chain via the EIP-712 Order
+    salt ("02"+10 random digits) and nonce fields, not via an HTTP idempotency contract.
+pagination:
+  style: offset-limit
+  params:
+  - limit
+  - offset
+  response_fields:
+  - data.total
+  applies_to:
+  - GET /api/v1/market-discovery/discover
+  - GET /api/v1/portfolio/open-orders
+  note: Page with offset += limit until data.total is exhausted.
+versioning:
+  scheme: uri-path
+  current: v1
+  example: /api/v1/...
+error_envelope:
+  shape: '{ success: false, message, error: { code, message, details } }'
+  see: errors/pred-problem-types.yml
+money_units:
+  price: cents (0-100), wei-scaled for signatures as (priceCents/100)*1e6
+  quantity: shares, wei-scaled as quantity*1e6
+  settlement_asset: USDC on Base
+realtime:
+  transport: Ably WebSocket
+  token_endpoint: POST /api/v1/auth/ably
+  see: asyncapi/pred-realtime-asyncapi.yml
+rate_limiting:
+  documented: false
+  note: No rate-limit headers or quotas documented in the public API reference.
+request_tracing:
+  documented: false

@@ -1,0 +1,19 @@
+generated: '2026-07-20'
+method: generated
+api: openapi/pred-openapi.yml
+skills:
+- file: pred-place-a-trade.md
+  name: Place a trade on PRED
+  operations:
+  - loginWithSignature
+  - prepareSafeApproval
+  - executeSafeApproval
+  - getAllParentMarkets
+  - getOrderBook
+  - placeOrder
+  - getPositions
+- file: pred-stream-realtime.md
+  name: Stream PRED real-time order and market data
+  operations:
+  - loginWithSignature
+  - getAblyToken

@@ -1,0 +1,21 @@
+generated: '2026-07-20'
+method: searched
+source: https://pred-1.gitbook.io/pred-docs/api-reference/overview
+versioning:
+  scheme: uri-path
+  current: v1
+  docs: https://pred-1.gitbook.io/pred-docs/api-reference/overview
+environments:
+- name: mainnet
+  base_url: https://www.pred.app
+  chain: Base
+  chain_id: 8453
+- name: testnet
+  base_url: https://testnet.pred.app
+  chain: Base Sepolia
+  chain_id: 84532
+deprecation:
+  policy_documented: false
+status_page: null
+sla: null
+note: No public deprecation policy, SLA, or status page found. Single unversioned-beyond-v1 API surface.

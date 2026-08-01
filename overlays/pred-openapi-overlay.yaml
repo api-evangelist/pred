@@ -1,0 +1,21 @@
+overlay: 1.0.0
+info:
+  title: API Evangelist enhancements for PRED Trading Platform API
+  version: 1.0.0
+extends: openapi/pred-openapi.yml
+actions:
+- target: $.info
+  update:
+    x-apievangelist-enriched: true
+    x-api-evangelist-provider: pred
+    x-settlement: USDC on Base (Ethereum L2)
+    x-realtime: asyncapi/pred-realtime-asyncapi.yml
+- target: $.info
+  update:
+    x-authentication: authentication/pred-authentication.yml
+    x-conventions: conventions/pred-conventions.yml
+    x-errors: errors/pred-problem-types.yml
+    x-sandbox: sandbox/pred-sandbox.yml
+- target: $
+  update:
+    x-agentic-access: agentic-access/pred-agentic-access.yml

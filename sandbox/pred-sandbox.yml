@@ -1,0 +1,29 @@
+generated: '2026-07-20'
+method: searched
+source: https://pred-1.gitbook.io/pred-docs/api-reference/overview
+test_live_separation:
+  model: Separate environments per blockchain network; choose environment first, then use its base URL,
+    chain id, chain type, and contracts.
+  environments:
+  - name: testnet
+    base_url: https://testnet.pred.app
+    chain: Base Sepolia
+    chain_id: 84532
+    login_body_chain_type: base-sepolia
+    login_contract: '0x306b5C979b812BD6eE6767043A24c5D8870e292A'
+    order_contract_default: '0xc76DC1c16E672f04b8faD103269E7474FA620a7B'
+  - name: mainnet
+    base_url: https://www.pred.app
+    chain: Base
+    chain_id: 8453
+    login_body_chain_type: base
+    login_contract: '0xA077e7aaBF2e3c0155F83789e95f46602D03F7f0'
+    order_contract_default: '0x1938Af63B717B80ea62ccB4CCBf799F8a28dEFB0'
+order_contract_note: Do NOT hardcode the order contract; for each parent market use parent_market_data.contract_address
+  from market discovery as the EIP-712 verifyingContract.
+funding:
+  asset: USDC on Base
+  how: Send USDC to your proxy_wallet_address (Gnosis Safe) returned by login.
+  trial_run: Send 5 USDC (or any minimal amount), place a trade, get it matched, confirm a position via
+    GET /api/v1/portfolio/positions.
+api_key: X-API-Key for login-with-signature is issued by Pred on request (not self-service).

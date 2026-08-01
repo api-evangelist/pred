@@ -1,0 +1,38 @@
+# PRED
+
+## Documentation
+
+- [Welcome to PRED](https://pred-1.gitbook.io/pred-docs/readme.md)
+- [Background & Narrative](https://pred-1.gitbook.io/pred-docs/background-and-narrative.md)
+- [Core Concepts](https://pred-1.gitbook.io/pred-docs/getting-started/core-concepts.md)
+- [Trading Probabilities, Not Betting Odds](https://pred-1.gitbook.io/pred-docs/getting-started/core-concepts/trading-probabilities-not-betting-odds.md)
+- [On-Chain by Design](https://pred-1.gitbook.io/pred-docs/getting-started/core-concepts/on-chain-by-design.md)
+- [How to Sign-Up](https://pred-1.gitbook.io/pred-docs/getting-started/signup.md)
+- [Making Your First Trade](https://pred-1.gitbook.io/pred-docs/getting-started/your-first-trade.md)
+- [Deposit & Withdraw](https://pred-1.gitbook.io/pred-docs/getting-started/deposit-and-withdraw.md)
+- [Deposit](https://pred-1.gitbook.io/pred-docs/getting-started/deposit-and-withdraw/deposit.md): How to Deposit
+- [Withdraw](https://pred-1.gitbook.io/pred-docs/getting-started/deposit-and-withdraw/withdraw.md): How to Withdraw
+- [How Are Markets Created](https://pred-1.gitbook.io/pred-docs/markets/how-are-markets-created.md)
+- [How Are Prices Calculated](https://pred-1.gitbook.io/pred-docs/markets/how-are-prices-calculated.md)
+- [How Are Markets Resolved](https://pred-1.gitbook.io/pred-docs/markets/how-are-markets-resolved.md)
+- [Types Of Market On PRED](https://pred-1.gitbook.io/pred-docs/markets/types-of-market-on-pred.md)
+- [PRED vs Others](https://pred-1.gitbook.io/pred-docs/trading/pred-vs-others.md): What makes us different?
+- [Order Book](https://pred-1.gitbook.io/pred-docs/trading/order-book.md)
+- [Order Types](https://pred-1.gitbook.io/pred-docs/trading/order-types.md)
+- [Long & Short](https://pred-1.gitbook.io/pred-docs/trading/order-types/long-and-short.md)
+- [Cashout](https://pred-1.gitbook.io/pred-docs/trading/order-types/cashout.md)
+- [Take Profit & Stop Loss (TP/SL)](https://pred-1.gitbook.io/pred-docs/trading/take-profit-and-stop-loss-tp-sl.md): Coming Soon
+- [Fees](https://pred-1.gitbook.io/pred-docs/trading/fees.md)
+- [Liquidity & MM Rewards](https://pred-1.gitbook.io/pred-docs/trading/liquidity-and-mm-rewards.md)
+- [Shares](https://pred-1.gitbook.io/pred-docs/trading/shares.md)
+- [Contact Us](https://pred-1.gitbook.io/pred-docs/support/contact-us.md)
+- [Brand Kit](https://pred-1.gitbook.io/pred-docs/support/brand-kit.md): Click on the button below to download the detailed version of our Brand Kit
+
+* [Overview](https://pred-1.gitbook.io/pred-docs/api-reference/overview.md)
+* [Market Discovery](https://pred-1.gitbook.io/pred-docs/api-reference/market-discovery.md)
+* [Authentication](https://pred-1.gitbook.io/pred-docs/api-reference/authentication.md)
+* [Trading Enablement](https://pred-1.gitbook.io/pred-docs/api-reference/trading-enablement.md)
+* [Orders](https://pred-1.gitbook.io/pred-docs/api-reference/orders.md)
+* [Portfolio](https://pred-1.gitbook.io/pred-docs/api-reference/portfolio.md)
+* [WebSocket (Ably)](https://pred-1.gitbook.io/pred-docs/api-reference/websocket-ably.md)
+* [Models](https://pred-1.gitbook.io/pred-docs/api-reference/models.md)

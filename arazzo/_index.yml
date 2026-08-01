@@ -1,0 +1,7 @@
+generated: '2026-07-20'
+method: derived
+workflows:
+- file: pred-trading.yml
+  workflowId: login-discover-and-place-order
+  title: 'PRED: login, discover, place order'
+  summary: Signed-order trading flow end to end.

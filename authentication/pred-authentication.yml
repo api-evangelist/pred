@@ -1,0 +1,63 @@
+generated: '2026-07-20'
+method: searched
+source: openapi/pred-openapi.yml
+docs: https://pred-1.gitbook.io/pred-docs/api-reference/authentication
+summary:
+  types:
+  - http
+  - apiKey
+  - signature
+  api_key_in:
+  - header
+  notes: >-
+    Wallet-signature login. A partner-issued X-API-Key gates the
+    login-with-signature endpoint; the login itself is an EIP-712 CreateProxy
+    signature from the user's EOA. Successful login returns a short-lived JWT
+    access token (Bearer) plus a rotating refresh token; authenticated trading
+    endpoints additionally require X-Wallet-Address and X-Proxy-Address headers.
+schemes:
+- name: BearerAuth
+  type: http
+  scheme: bearer
+  bearerFormat: JWT
+  description: 'JWT access token returned by POST /api/v1/auth/login-with-signature; sent as Authorization: Bearer <token>.'
+  sources:
+  - openapi/pred-openapi.yml
+- name: X-API-Key
+  type: apiKey
+  in: header
+  parameter: X-API-Key
+  description: >-
+    Partner API key required only for POST /api/v1/auth/login-with-signature.
+    Requested directly from Pred (not self-service).
+  sources:
+  - https://pred-1.gitbook.io/pred-docs/api-reference/authentication
+- name: EIP712-CreateProxy
+  type: signature
+  scheme: eip-712
+  description: >-
+    Login proof. EOA signs an EIP-712 CreateProxy message (domain
+    "Pred Contract Proxy Factory", chainId + verifyingContract are env-specific).
+    Signature format 0x<r><s><v>, low-s normalized.
+  sources:
+  - https://pred-1.gitbook.io/pred-docs/api-reference/authentication
+- name: EIP712-Order
+  type: signature
+  scheme: eip-712
+  description: >-
+    Per-order authorization. EOA signs an EIP-712 Order message (domain
+    "Pred CTF Exchange" version 1; verifyingContract = the parent market's
+    contract_address from market discovery) for every order placement.
+  sources:
+  - https://pred-1.gitbook.io/pred-docs/api-reference/orders
+context_headers:
+- name: X-Wallet-Address
+  usage: EOA wallet address; required on order and portfolio endpoints.
+- name: X-Proxy-Address
+  usage: Gnosis Safe proxy wallet address; required on order and portfolio endpoints.
+- name: X-Refresh-Token
+  usage: Refresh token for POST /api/v1/auth/refresh/token (or refresh_token cookie).
+token_lifecycle:
+  refresh_endpoint: POST /api/v1/auth/refresh/token
+  rotation: Each refresh rotates the refresh token; reusing an old one returns 401 REFRESH_TOKEN_ALREADY_USED.
+  sdk_refresh_threshold_seconds: 300
