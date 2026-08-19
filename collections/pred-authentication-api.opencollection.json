@@ -1,0 +1,60 @@
+{
+  "opencollection": "1.0.0",
+  "info": {
+    "name": "PRED Trading Platform Authentication API",
+    "version": "1.0.0"
+  },
+  "items": [
+    {
+      "info": {
+        "name": "Authentication",
+        "type": "folder"
+      },
+      "items": [
+        {
+          "info": {
+            "name": "Login with wallet signature",
+            "type": "http"
+          },
+          "http": {
+            "method": "POST",
+            "url": "https://testnet.pred.app/api/v1/auth/login-with-signature",
+            "headers": [
+              {
+                "name": "X-API-Key",
+                "value": ""
+              }
+            ],
+            "body": {
+              "type": "json",
+              "data": "{}"
+            }
+          },
+          "docs": "Authenticate using an EIP-712 CreateProxy wallet signature. **Required header:** `X-API-Key`.\n\nSee **Authentication** section for CreateProxy domain, message, and signature format (contract addresses, normalization).\n"
+        },
+        {
+          "info": {
+            "name": "Refresh access token",
+            "type": "http"
+          },
+          "http": {
+            "method": "POST",
+            "url": "https://testnet.pred.app/api/v1/auth/refresh/token",
+            "headers": [
+              {
+                "name": "X-Refresh-Token",
+                "value": ""
+              }
+            ],
+            "body": {
+              "type": "json",
+              "data": "{}"
+            }
+          },
+          "docs": "Refresh the access token using a refresh token. The refresh token can be sent via:\n\n1. **Header** (preferred): `X-Refresh-Token: <refresh_token>` — checked first\n2. **Cookie** (fallback): `refresh_token` cookie (set automatically by login endpoint)\n\nThe refresh token from the login response body (`refresh_token` field) can be sent as the `X-Refresh-Token` header.\n\n**Token rotation:** Each refresh returns a new refresh token (via `Set-Cookie`). The old refresh token is invalidated — using it agai"
+        }
+      ]
+    }
+  ],
+  "bundled": true
+}

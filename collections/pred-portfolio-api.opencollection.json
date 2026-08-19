@@ -1,0 +1,122 @@
+{
+  "opencollection": "1.0.0",
+  "info": {
+    "name": "PRED Trading Platform Authentication Portfolio API",
+    "version": "1.0.0"
+  },
+  "items": [
+    {
+      "info": {
+        "name": "Portfolio",
+        "type": "folder"
+      },
+      "items": [
+        {
+          "info": {
+            "name": "Get account balance",
+            "type": "http"
+          },
+          "http": {
+            "method": "GET",
+            "url": "https://testnet.pred.app/api/v1/portfolio/balance",
+            "headers": [
+              {
+                "name": "X-Wallet-Address",
+                "value": ""
+              },
+              {
+                "name": "X-Proxy-Address",
+                "value": ""
+              }
+            ]
+          },
+          "docs": "Retrieve the current account balance in USD."
+        },
+        {
+          "info": {
+            "name": "Get open positions",
+            "type": "http"
+          },
+          "http": {
+            "method": "GET",
+            "url": "https://testnet.pred.app/api/v1/portfolio/positions",
+            "headers": [
+              {
+                "name": "X-Wallet-Address",
+                "value": ""
+              },
+              {
+                "name": "X-Proxy-Address",
+                "value": ""
+              }
+            ]
+          },
+          "docs": "Retrieve all open positions across all markets."
+        },
+        {
+          "info": {
+            "name": "Get portfolio earnings",
+            "type": "http"
+          },
+          "http": {
+            "method": "GET",
+            "url": "https://testnet.pred.app/api/v1/portfolio/earnings",
+            "headers": [
+              {
+                "name": "X-Wallet-Address",
+                "value": ""
+              },
+              {
+                "name": "X-Proxy-Address",
+                "value": ""
+              }
+            ]
+          },
+          "docs": "Retrieve realized, unrealized, and total PnL for the authenticated user."
+        },
+        {
+          "info": {
+            "name": "Get open orders (portfolio — may have delays)",
+            "type": "http"
+          },
+          "http": {
+            "method": "GET",
+            "url": "https://testnet.pred.app/api/v1/portfolio/open-orders",
+            "headers": [
+              {
+                "name": "X-Wallet-Address",
+                "value": ""
+              },
+              {
+                "name": "X-Proxy-Address",
+                "value": ""
+              }
+            ],
+            "params": [
+              {
+                "name": "offset",
+                "value": "",
+                "type": "query",
+                "description": "Pagination offset (default 0)"
+              },
+              {
+                "name": "limit",
+                "value": "",
+                "type": "query",
+                "description": "Page size (default 100)"
+              },
+              {
+                "name": "market_id",
+                "value": "",
+                "type": "query",
+                "description": "Filter by market ID"
+              }
+            ]
+          },
+          "docs": "Retrieve open orders across all markets with optional pagination and market filter.\n\n**Warning:** This endpoint may have significant delays in reflecting the latest order state (cancellations, fills). It is served by the portfolio service which aggregates data asynchronously.\n\n**Recommended:** Use `GET /api/v1/order/{parentMarketID}/open-orders` instead for real-time, accurate open orders per parent market. Use this portfolio endpoint only for a cross-market overview when slight staleness is acc"
+        }
+      ]
+    }
+  ],
+  "bundled": true
+}

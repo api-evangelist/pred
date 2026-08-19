@@ -1,0 +1,68 @@
+{
+  "opencollection": "1.0.0",
+  "info": {
+    "name": "PRED Trading Platform Authentication Market Discovery API",
+    "version": "1.0.0"
+  },
+  "items": [
+    {
+      "info": {
+        "name": "Market Discovery",
+        "type": "folder"
+      },
+      "items": [
+        {
+          "info": {
+            "name": "Get market discovery feed",
+            "type": "http"
+          },
+          "http": {
+            "method": "GET",
+            "url": "https://testnet.pred.app/api/v1/market-discovery/discover",
+            "params": [
+              {
+                "name": "verbose",
+                "value": "",
+                "type": "query",
+                "description": "Must be true for trading clients; includes parent_market_id, contract_address, parent_market_type, parent_market_family, fixture metadata, and other verbose parent fields."
+              },
+              {
+                "name": "limit",
+                "value": "",
+                "type": "query",
+                "description": "Pagination limit. Recommended value for full-feed clients is 50; continue paging until data.total is exhausted."
+              },
+              {
+                "name": "offset",
+                "value": "",
+                "type": "query",
+                "description": "Pagination offset. Start at 0 and increment by limit for each page."
+              }
+            ]
+          },
+          "docs": "Returns discovery entries with parent market data, fixture context, team data, and markets.\nTrading clients should call this endpoint with `verbose=true` and paginate with `limit`/`offset`\nuntil `data.total` is exhausted. Recommended page size for SDK/market-maker style clients is\n`limit=50`; avoid bursts above roughly 10 discovery requests per second.\n\n`verbose=true` is required so `parent_market_data.parent_market_id`,\n`parent_market_data.contract_address`, `parent_market_data.parent_market_ty"
+        },
+        {
+          "info": {
+            "name": "Get parent market details",
+            "type": "http"
+          },
+          "http": {
+            "method": "GET",
+            "url": "https://testnet.pred.app/api/v1/market-discovery/parents/:parentMarketID",
+            "params": [
+              {
+                "name": "parentMarketID",
+                "value": "",
+                "type": "path",
+                "description": "Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+              }
+            ]
+          },
+          "docs": "Get parent market details including child market IDs and statuses.\nUse this when you already know a parent market ID and need to confirm its current\nparent status, child `markets[].status`, market family/type, and contract address.\nFor full-market discovery, prefer the paginated\n`GET /api/v1/market-discovery/discover?verbose=true&limit=50&offset=0` flow.\n\nTrading/quoting clients should require parent `status == \"active\"` and child\n`markets[].status == \"active\"` before enabling a child market. Tr"
+        }
+      ]
+    }
+  ],
+  "bundled": true
+}

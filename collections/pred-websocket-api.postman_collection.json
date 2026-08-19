@@ -1,0 +1,232 @@
+{
+  "item": [
+    {
+      "id": "2bf52de8-5910-439d-bffc-66311181360c",
+      "name": "WebSocket",
+      "description": {
+        "content": "PRED uses [Ably](https://ably.com/) for real-time WebSocket data. Use Ably's token auth with `POST /api/v1/auth/ably` as your `authCallback`.\n\n## Token auth\n\nCall `POST /api/v1/auth/ably` to get raw Ably `TokenDetails` JSON:\n\n```json\n{\n  \"token\": \"ably-token-string\",\n  \"keyName\": \"xxxxx.xxxxx\",\n  \"clientId\": \"user-uuid\",\n  \"capability\": \"{\\\"private:user:user-uuid\\\":[\\\"presence\\\",\\\"subscribe\\\"],\\\"market:*\\\":[\\\"subscribe\\\"]}\",\n  \"expires\": 1700000000000,\n  \"issued\": 1699996400000\n}\n```\n\n**Capabilities granted:**\n- Channel `private:user:<user_id>`: `presence`, `subscribe`\n- Channel `market:*`: `subscribe`\n\n## Private user channel: `private:user:{userID}`\n\n- **Authenticated**: you can only subscribe to your own `user_id` channel\n- **Must subscribe with Presence** (see below) — PRED only pushes events to clients that have entered presence on this channel\n- `user_id` comes from the login response\n\n## How to subscribe with presence\n\nFor the private user channel, you must **enter presence** before subscribing; otherwise PRED does not deliver order events. Use Ably's presence API in this order:\n\n1. Obtain a token: call `POST /api/v1/auth/ably` with `Authorization: Bearer <access_token>` (and optionally `X-Wallet-Address`, `X-Proxy-Address`). Use the returned body as Ably's token (e.g. in `authCallback`).\n2. Connect to Ably with that token (e.g. `ably.NewRealtime` with `authCallback` that returns the token).\n3. Resolve the channel name for your user (e.g. `private:user:<user_id>` from login; the token's capability may also indicate the channel).\n4. Get the channel: `channel := realtime.Channels.Get(channelName)`.\n5. **Enter presence** on the channel: call `channel.Presence.Enter(ctx, data)` with a small payload (e.g. `map[string]string{\"source\": \"your-app\"}`). This step is required; PRED only sends events to clients that have entered presence.\n6. Subscribe to messages: call `channel.SubscribeAll(ctx, messageHandler)` (or `channel.Subscribe(ctx, eventName, handler)` for specific events). Handle `order-created`, `order-cancelled`, `order-updated` (and optionally `order-adjusted` if supported).\n\nIf you subscribe without entering presence first, you will not receive order events on the private user channel.\n\n**Events:**\n\n### `order-created` — New limit order placed\n\n```json\n{\n  \"order_id\": \"string\",\n  \"market_id\": \"string\",\n  \"market_name\": \"string\",\n  \"parent_market_id\": \"string\",\n  \"parent_market_name\": \"string\",\n  \"side\": \"long | short\",\n  \"price\": \"string (cents)\",\n  \"quantity\": \"string (shares)\",\n  \"amount\": \"string (USD)\",\n  \"remaining_quantity\": \"string\",\n  \"reduce_only\": false,\n  \"market_maker\": false,\n  \"expiration\": 1234567890\n}\n```\n\n### `order-cancelled` — Order cancelled by user or system\n\n```json\n{\n  \"event_type\": \"order_cancelled\",\n  \"order_id\": \"string\",\n  \"timestamp\": 1234567890\n}\n```\n\n### `order-updated` — Order matched on-chain (fully or partially filled)\n\n```json\n{\n  \"event_type\": \"order_matched_on_chain\",\n  \"order_id\": \"string\",\n  \"remaining_quantity\": \"string\",\n  \"filled_quantity\": \"string\",\n  \"timestamp\": 1234567890\n}\n```\n\nNote: `matched_on_chain` may be `false` before confirmation; treat as a fill and react. Position from API may not reflect the impact yet.\n\nThe SDK also handles alternate payload shapes: fields like `order_side`, `order_price`, `order_quantity`, or a nested `order` object with `side`, `price`, `quantity`. Additional fields that may appear: `market_id`, `parent_market_id`, `side`, `price`, `quantity`.\n\n## Public market channels\n\n### `market:orderbook:{marketID}` — Order book snapshot\n\nEvent name: `orderbook` (throttled to 100ms)\n\n```json\n{\n  \"market_id\": \"string\",\n  \"last_updated_at\": \"2024-01-01T00:00:00Z\",\n  \"sequence_number\": 123,\n  \"last_update_id\": 123,\n  \"bids\": [\n    { \"price\": \"50\", \"quantity\": \"100\", \"total\": \"50\" }\n  ],\n  \"asks\": [\n    { \"price\": \"51\", \"quantity\": \"100\", \"total\": \"51\" }\n  ]\n}\n```\n\nThe SDK also reads `size` as an alias for `quantity`, and `metadata.cross_matching_enabled` (boolean).\n\n### `market:ltp:{marketID}` — Last traded price\n\nEvent name: `ltp` (throttled to 100ms)\n\n```json\n{\n  \"price\": \"string (cents)\",\n  \"volume\": \"string\",\n  \"timestamp\": 1234567890\n}\n```\n\n## Connection details\n\n- Use Ably token auth with `authCallback` calling `POST /api/v1/auth/ably`\n- Reconnect with exponential backoff: 1s min, 30s max\n- On the private user channel, enter presence before subscribing (see \"How to subscribe with presence\" above)\n",
+        "type": "text/plain"
+      },
+      "item": [
+        {
+          "id": "db90c418-9a25-462a-a490-4607ac25818a",
+          "name": "Get Ably WebSocket token",
+          "request": {
+            "name": "Get Ably WebSocket token",
+            "description": {
+              "content": "Generate an Ably token for WebSocket connections. Returns raw Ably `TokenDetails` JSON (not wrapped).\n\n**Capabilities granted:**\n- `private:user:<user_id>`: `[presence, subscribe]`\n- `market:*`: `[subscribe]`\n\nUse this token with Ably's `authCallback` for token-based auth.\n",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "ably"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "disabled": false,
+                "description": "(Required) Your EOA wallet address",
+                "key": "X-Wallet-Address",
+                "value": "<string>"
+              },
+              {
+                "disabled": false,
+                "description": "(Required) Your proxy wallet address (from login response)",
+                "key": "X-Proxy-Address",
+                "value": "<string>"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "auth": null
+          },
+          "response": [
+            {
+              "id": "f817ac8d-28cd-4f73-b32e-c091cdbbcd0d",
+              "name": "Ably token generated",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "ably"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your EOA wallet address",
+                    "key": "X-Wallet-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your proxy wallet address (from login response)",
+                    "key": "X-Proxy-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {}
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"token\": \"string\",\n  \"keyName\": \"string\",\n  \"expires\": 5588,\n  \"clientId\": \"string\",\n  \"issued\": 8457,\n  \"capability\": \"string\"\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "47f9a8db-83ba-423c-aeb0-f5d2d29866fd",
+              "name": "Authentication required or failed",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "ably"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your EOA wallet address",
+                    "key": "X-Wallet-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your proxy wallet address (from login response)",
+                    "key": "X-Proxy-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {}
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": \"string\",\n    \"message\": \"string\",\n    \"details\": \"string\"\n  },\n  \"message\": \"string\",\n  \"success\": false\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "3d3c5ff3-1076-428d-bbd8-99abe9be137f",
+              "name": "Failed to authenticate with Ably",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "ably"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your EOA wallet address",
+                    "key": "X-Wallet-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your proxy wallet address (from login response)",
+                    "key": "X-Proxy-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {}
+              },
+              "status": "Internal Server Error",
+              "code": 500,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": \"string\",\n    \"message\": \"string\",\n    \"details\": \"string\"\n  },\n  \"message\": \"string\",\n  \"success\": false\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        }
+      ],
+      "event": []
+    }
+  ],
+  "event": [],
+  "variable": [
+    {
+      "type": "string",
+      "value": "https://testnet.pred.app",
+      "key": "baseUrl"
+    }
+  ],
+  "info": {
+    "_postman_id": "2bb28741-cf55-4cba-b410-9f4ddce9d4fa",
+    "name": "PRED Trading Platform Authentication WebSocket API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": {
+      "content": "Required headers, token refresh, and EIP-712 CreateProxy signature for login. For overview, getting started, and environment configuration, see **Overview**.\n\n## Required headers\n\n- `Authorization: Bearer <token>`\n  (for authenticated endpoints)\n- `X-API-Key: <api_key>`\n  (required for login-with-signature only)\n- `X-Wallet-Address: <wallet_address>`\n  (for order and portfolio endpoints)\n- `X-Proxy-Address: <proxy_wallet_address>`\n  (for order and portfolio endpoints)\n\n**Token refresh:** Access tokens are automatically refreshed by the SDK whenever their remaining lifetime drops below the configured threshold. The default threshold is **5 minutes**, and can be overridden via the `RefreshThresholdSeconds` client option.\n\n## EIP-712 login signature — CreateProxy\n\nFormat: `0x<r><s><v>` (132 hex characters). Low-s normalized: `s <= curveOrderHalf`.\n\n**Domain (NO version field):** All values below are ENV-specific; use the row for your chosen environment (see Environment configuration in **Overview**).\n```\nEIP712Domain type: \"EIP712Domain(string name,uint256 chainId,address verifyingContract)\"\nname: \"Pred Contract Proxy Factory\"\nchainId:        <Chain ID from environment table — Testnet 84532, Mainnet 8453>\nverifyingContract: <Login Contract from environment table>\n```\n\n**Message:**\n```\nCreateProxy type: \"CreateProxy(address paymentToken,uint256 payment,address paymentReceiver)\"\npaymentToken: 0x0000000000000000000000000000000000000000\npayment: 0\npaymentReceiver: 0x0000000000000000000000000000000000000000\n```\n\n**Normalization constants:**\n- `curveOrder = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141`\n- `curveOrderHalf = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0`\n",
+      "type": "text/plain"
+    }
+  }
+}

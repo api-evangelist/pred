@@ -1,0 +1,677 @@
+{
+  "item": [
+    {
+      "id": "fc005d04-998f-4ba3-8d31-694bf7868291",
+      "name": "Portfolio",
+      "description": {
+        "content": "Portfolio, balance, positions, and open orders.\n\n**Endpoints:**\n- Balance: `GET /api/v1/portfolio/balance`\n- Positions: `GET /api/v1/portfolio/positions`\n- Earnings: `GET /api/v1/portfolio/earnings`\n- Open orders: `GET /api/v1/portfolio/open-orders` (optional pagination)\nRequire `Authorization`, `X-Wallet-Address`, `X-Proxy-Address`. For real-time open orders per market, prefer `GET /api/v1/order/{parentMarketID}/open-orders`; portfolio open-orders can have significant delays.\n",
+        "type": "text/plain"
+      },
+      "item": [
+        {
+          "id": "55e62b3d-f5b6-4e1f-bbc9-2857d1133b25",
+          "name": "Get account balance",
+          "request": {
+            "name": "Get account balance",
+            "description": {
+              "content": "Retrieve the current account balance in USD.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "portfolio",
+                "balance"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "disabled": false,
+                "description": "(Required) Your EOA wallet address",
+                "key": "X-Wallet-Address",
+                "value": "<string>"
+              },
+              {
+                "disabled": false,
+                "description": "(Required) Your proxy wallet address (from login response)",
+                "key": "X-Proxy-Address",
+                "value": "<string>"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "auth": null
+          },
+          "response": [
+            {
+              "id": "ce49ad2f-9374-49aa-82b4-1a38ef817ae1",
+              "name": "Balance retrieved",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "portfolio",
+                    "balance"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your EOA wallet address",
+                    "key": "X-Wallet-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your proxy wallet address (from login response)",
+                    "key": "X-Proxy-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "body": {}
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"data\": {\n    \"balance\": \"string\"\n  },\n  \"error\": {\n    \"code\": \"string\",\n    \"message\": \"string\",\n    \"details\": \"string\"\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "eb294306-ba59-4214-9649-1654b62a087e",
+              "name": "Authentication required or failed",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "portfolio",
+                    "balance"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your EOA wallet address",
+                    "key": "X-Wallet-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your proxy wallet address (from login response)",
+                    "key": "X-Proxy-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "body": {}
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": \"string\",\n    \"message\": \"string\",\n    \"details\": \"string\"\n  },\n  \"message\": \"string\",\n  \"success\": false\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "d1183575-0f4d-4efc-a3f7-59e69e94264a",
+          "name": "Get open positions",
+          "request": {
+            "name": "Get open positions",
+            "description": {
+              "content": "Retrieve all open positions across all markets.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "portfolio",
+                "positions"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "disabled": false,
+                "description": "(Required) Your EOA wallet address",
+                "key": "X-Wallet-Address",
+                "value": "<string>"
+              },
+              {
+                "disabled": false,
+                "description": "(Required) Your proxy wallet address (from login response)",
+                "key": "X-Proxy-Address",
+                "value": "<string>"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "auth": null
+          },
+          "response": [
+            {
+              "id": "5cbb8e8d-e805-42d9-af25-f1735339fb2c",
+              "name": "Positions retrieved",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "portfolio",
+                    "positions"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your EOA wallet address",
+                    "key": "X-Wallet-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your proxy wallet address (from login response)",
+                    "key": "X-Proxy-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "body": {}
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"positions\": [\n    {\n      \"market_id\": \"string\",\n      \"market_name\": \"string\",\n      \"side\": \"short\",\n      \"quantity\": \"string\",\n      \"average_price\": \"string\",\n      \"amount\": \"string\"\n    },\n    {\n      \"market_id\": \"string\",\n      \"market_name\": \"string\",\n      \"side\": \"short\",\n      \"quantity\": \"string\",\n      \"average_price\": \"string\",\n      \"amount\": \"string\"\n    }\n  ],\n  \"error\": {\n    \"code\": \"string\",\n    \"message\": \"string\",\n    \"details\": \"string\"\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "26ca0f13-e8e3-499e-99d3-124b602735f9",
+              "name": "Authentication required or failed",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "portfolio",
+                    "positions"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your EOA wallet address",
+                    "key": "X-Wallet-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your proxy wallet address (from login response)",
+                    "key": "X-Proxy-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "body": {}
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": \"string\",\n    \"message\": \"string\",\n    \"details\": \"string\"\n  },\n  \"message\": \"string\",\n  \"success\": false\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "5b882dd0-94b0-4b69-ae16-399c87b3a258",
+          "name": "Get portfolio earnings",
+          "request": {
+            "name": "Get portfolio earnings",
+            "description": {
+              "content": "Retrieve realized, unrealized, and total PnL for the authenticated user.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "portfolio",
+                "earnings"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "disabled": false,
+                "description": "(Required) Your EOA wallet address",
+                "key": "X-Wallet-Address",
+                "value": "<string>"
+              },
+              {
+                "disabled": false,
+                "description": "(Required) Your proxy wallet address (from login response)",
+                "key": "X-Proxy-Address",
+                "value": "<string>"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "auth": null
+          },
+          "response": [
+            {
+              "id": "db716762-de90-4a7d-9466-fe15cc2fe5b6",
+              "name": "Earnings retrieved",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "portfolio",
+                    "earnings"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your EOA wallet address",
+                    "key": "X-Wallet-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your proxy wallet address (from login response)",
+                    "key": "X-Proxy-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "body": {}
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"user_id\": \"string\",\n  \"realized_pnl\": \"string\",\n  \"unrealized_pnl\": \"string\",\n  \"total_pnl\": \"string\"\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "43d404ff-f2a5-43a8-b696-a187a305f9a3",
+              "name": "Authentication required or failed",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "portfolio",
+                    "earnings"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your EOA wallet address",
+                    "key": "X-Wallet-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your proxy wallet address (from login response)",
+                    "key": "X-Proxy-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "body": {}
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": \"string\",\n    \"message\": \"string\",\n    \"details\": \"string\"\n  },\n  \"message\": \"string\",\n  \"success\": false\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "61bc844f-0651-4b1d-b99e-50f7ae464465",
+          "name": "Get open orders (portfolio — may have delays)",
+          "request": {
+            "name": "Get open orders (portfolio — may have delays)",
+            "description": {
+              "content": "Retrieve open orders across all markets with optional pagination and market filter.\n\n**Warning:** This endpoint may have significant delays in reflecting the latest order state (cancellations, fills). It is served by the portfolio service which aggregates data asynchronously.\n\n**Recommended:** Use `GET /api/v1/order/{parentMarketID}/open-orders` instead for real-time, accurate open orders per parent market. Use this portfolio endpoint only for a cross-market overview when slight staleness is acceptable.\n",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "portfolio",
+                "open-orders"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [
+                {
+                  "disabled": false,
+                  "key": "offset",
+                  "value": "0",
+                  "description": "Pagination offset (default 0)"
+                },
+                {
+                  "disabled": false,
+                  "key": "limit",
+                  "value": "100",
+                  "description": "Page size (default 100)"
+                },
+                {
+                  "disabled": false,
+                  "key": "market_id",
+                  "value": "<string>",
+                  "description": "Filter by market ID"
+                }
+              ],
+              "variable": []
+            },
+            "header": [
+              {
+                "disabled": false,
+                "description": "(Required) Your EOA wallet address",
+                "key": "X-Wallet-Address",
+                "value": "<string>"
+              },
+              {
+                "disabled": false,
+                "description": "(Required) Your proxy wallet address (from login response)",
+                "key": "X-Proxy-Address",
+                "value": "<string>"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "auth": null
+          },
+          "response": [
+            {
+              "id": "e896d503-a25b-48d3-bad8-0ee84d37956d",
+              "name": "Open orders retrieved",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "portfolio",
+                    "open-orders"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "offset",
+                      "value": "0"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "100"
+                    },
+                    {
+                      "key": "market_id",
+                      "value": "<string>"
+                    }
+                  ],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your EOA wallet address",
+                    "key": "X-Wallet-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your proxy wallet address (from login response)",
+                    "key": "X-Proxy-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "body": {}
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"orders\": [\n    {\n      \"order_id\": \"string\",\n      \"market_id\": \"string\",\n      \"market_name\": \"string\",\n      \"parent_market_id\": \"string\",\n      \"side\": \"short\",\n      \"price\": \"string\",\n      \"quantity\": \"string\",\n      \"remaining_quantity\": \"string\"\n    },\n    {\n      \"order_id\": \"string\",\n      \"market_id\": \"string\",\n      \"market_name\": \"string\",\n      \"parent_market_id\": \"string\",\n      \"side\": \"short\",\n      \"price\": \"string\",\n      \"quantity\": \"string\",\n      \"remaining_quantity\": \"string\"\n    }\n  ]\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "fce68053-8f6c-4601-ae49-f306a7f0b92e",
+              "name": "Authentication required or failed",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "portfolio",
+                    "open-orders"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "offset",
+                      "value": "0"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "100"
+                    },
+                    {
+                      "key": "market_id",
+                      "value": "<string>"
+                    }
+                  ],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your EOA wallet address",
+                    "key": "X-Wallet-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your proxy wallet address (from login response)",
+                    "key": "X-Proxy-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "body": {}
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": \"string\",\n    \"message\": \"string\",\n    \"details\": \"string\"\n  },\n  \"message\": \"string\",\n  \"success\": false\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        }
+      ],
+      "event": []
+    }
+  ],
+  "event": [],
+  "variable": [
+    {
+      "type": "string",
+      "value": "https://testnet.pred.app",
+      "key": "baseUrl"
+    }
+  ],
+  "info": {
+    "_postman_id": "97828625-93d9-4aa7-9fdf-b2e88eee78d7",
+    "name": "PRED Trading Platform Authentication Portfolio API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": {
+      "content": "Required headers, token refresh, and EIP-712 CreateProxy signature for login. For overview, getting started, and environment configuration, see **Overview**.\n\n## Required headers\n\n- `Authorization: Bearer <token>`\n  (for authenticated endpoints)\n- `X-API-Key: <api_key>`\n  (required for login-with-signature only)\n- `X-Wallet-Address: <wallet_address>`\n  (for order and portfolio endpoints)\n- `X-Proxy-Address: <proxy_wallet_address>`\n  (for order and portfolio endpoints)\n\n**Token refresh:** Access tokens are automatically refreshed by the SDK whenever their remaining lifetime drops below the configured threshold. The default threshold is **5 minutes**, and can be overridden via the `RefreshThresholdSeconds` client option.\n\n## EIP-712 login signature — CreateProxy\n\nFormat: `0x<r><s><v>` (132 hex characters). Low-s normalized: `s <= curveOrderHalf`.\n\n**Domain (NO version field):** All values below are ENV-specific; use the row for your chosen environment (see Environment configuration in **Overview**).\n```\nEIP712Domain type: \"EIP712Domain(string name,uint256 chainId,address verifyingContract)\"\nname: \"Pred Contract Proxy Factory\"\nchainId:        <Chain ID from environment table — Testnet 84532, Mainnet 8453>\nverifyingContract: <Login Contract from environment table>\n```\n\n**Message:**\n```\nCreateProxy type: \"CreateProxy(address paymentToken,uint256 payment,address paymentReceiver)\"\npaymentToken: 0x0000000000000000000000000000000000000000\npayment: 0\npaymentReceiver: 0x0000000000000000000000000000000000000000\n```\n\n**Normalization constants:**\n- `curveOrder = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141`\n- `curveOrderHalf = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0`\n",
+      "type": "text/plain"
+    }
+  }
+}

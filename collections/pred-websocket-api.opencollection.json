@@ -1,0 +1,39 @@
+{
+  "opencollection": "1.0.0",
+  "info": {
+    "name": "PRED Trading Platform Authentication WebSocket API",
+    "version": "1.0.0"
+  },
+  "items": [
+    {
+      "info": {
+        "name": "WebSocket",
+        "type": "folder"
+      },
+      "items": [
+        {
+          "info": {
+            "name": "Get Ably WebSocket token",
+            "type": "http"
+          },
+          "http": {
+            "method": "POST",
+            "url": "https://testnet.pred.app/api/v1/auth/ably",
+            "headers": [
+              {
+                "name": "X-Wallet-Address",
+                "value": ""
+              },
+              {
+                "name": "X-Proxy-Address",
+                "value": ""
+              }
+            ]
+          },
+          "docs": "Generate an Ably token for WebSocket connections. Returns raw Ably `TokenDetails` JSON (not wrapped).\n\n**Capabilities granted:**\n- `private:user:<user_id>`: `[presence, subscribe]`\n- `market:*`: `[subscribe]`\n\nUse this token with Ably's `authCallback` for token-based auth.\n"
+        }
+      ]
+    }
+  ],
+  "bundled": true
+}

@@ -59,3 +59,9 @@ tools:
 - name: getAblyToken
   description: Get Ably WebSocket token
   source_operation: openapi/pred-openapi.yml#getAblyToken
+deployment:
+  mode: none
+  verified: derived
+  tools: 17
+  checked: '2026-08-12'
+  source: catalog MCP census

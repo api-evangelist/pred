@@ -1,0 +1,222 @@
+{
+  "opencollection": "1.0.0",
+  "info": {
+    "name": "PRED Trading Platform Authentication Orders API",
+    "version": "1.0.0"
+  },
+  "items": [
+    {
+      "info": {
+        "name": "Orders",
+        "type": "folder"
+      },
+      "items": [
+        {
+          "info": {
+            "name": "Place a new order",
+            "type": "http"
+          },
+          "http": {
+            "method": "POST",
+            "url": "https://testnet.pred.app/api/v1/order/:parentMarketID/place",
+            "headers": [
+              {
+                "name": "X-Wallet-Address",
+                "value": ""
+              },
+              {
+                "name": "X-Proxy-Address",
+                "value": ""
+              }
+            ],
+            "params": [
+              {
+                "name": "parentMarketID",
+                "value": "",
+                "type": "path",
+                "description": "Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+              }
+            ],
+            "body": {
+              "type": "json",
+              "data": "{}"
+            }
+          },
+          "docs": "Place an order (limit, market, or IOC). Requires EIP-712 Order signature; see **Orders** section for domain, type hash, field meanings, and wei conversion.\n\n**Order types:** `limit` (resting), `market` (fill at best), `ioc` (immediate-or-cancel). **Expiration:** Unix seconds; `0` = GTC. **Idempotency:** `salt` is the key; same salt returns cached response.\n\n**Validation:** Price > 0, < 100, multiple of tick size; side long/short; quantity ≥ 5, at most 1 decimal; timestamp within 15s of server (s"
+        },
+        {
+          "info": {
+            "name": "Cancel an order",
+            "type": "http"
+          },
+          "http": {
+            "method": "DELETE",
+            "url": "https://testnet.pred.app/api/v1/order/:parentMarketID/cancel",
+            "headers": [
+              {
+                "name": "X-Wallet-Address",
+                "value": ""
+              },
+              {
+                "name": "X-Proxy-Address",
+                "value": ""
+              }
+            ],
+            "params": [
+              {
+                "name": "parentMarketID",
+                "value": "",
+                "type": "path",
+                "description": "Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+              }
+            ],
+            "body": {
+              "type": "json",
+              "data": "{}"
+            }
+          },
+          "docs": "Cancel a single open order by order ID and market ID."
+        },
+        {
+          "info": {
+            "name": "Cancel all orders for a parent market",
+            "type": "http"
+          },
+          "http": {
+            "method": "DELETE",
+            "url": "https://testnet.pred.app/api/v1/order/:parentMarketID/cancel/all",
+            "headers": [
+              {
+                "name": "X-Wallet-Address",
+                "value": ""
+              },
+              {
+                "name": "X-Proxy-Address",
+                "value": ""
+              }
+            ],
+            "params": [
+              {
+                "name": "parentMarketID",
+                "value": "",
+                "type": "path",
+                "description": "Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+              }
+            ]
+          },
+          "docs": "Cancel all open orders for a parent market. No request body required.\n"
+        },
+        {
+          "info": {
+            "name": "Bulk cancel orders for a parent market",
+            "type": "http"
+          },
+          "http": {
+            "method": "DELETE",
+            "url": "https://testnet.pred.app/api/v1/order/:parentMarketID/cancel/bulk",
+            "headers": [
+              {
+                "name": "X-Wallet-Address",
+                "value": ""
+              },
+              {
+                "name": "X-Proxy-Address",
+                "value": ""
+              }
+            ],
+            "params": [
+              {
+                "name": "parentMarketID",
+                "value": "",
+                "type": "path",
+                "description": "Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+              }
+            ],
+            "body": {
+              "type": "json",
+              "data": "{}"
+            }
+          },
+          "docs": "Cancel multiple orders for a parent market. Send an array of order references.\nIf `orders` is empty, the backend fetches all open orders for this parent and cancels them.\n"
+        },
+        {
+          "info": {
+            "name": "Get open orders for a parent market (recommended)",
+            "type": "http"
+          },
+          "http": {
+            "method": "GET",
+            "url": "https://testnet.pred.app/api/v1/order/:parentMarketID/open-orders",
+            "headers": [
+              {
+                "name": "X-Wallet-Address",
+                "value": ""
+              },
+              {
+                "name": "X-Proxy-Address",
+                "value": ""
+              }
+            ],
+            "params": [
+              {
+                "name": "parentMarketID",
+                "value": "",
+                "type": "path",
+                "description": "Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+              }
+            ]
+          },
+          "docs": "Returns all open orders scoped to a specific parent market.\n\n**Recommended:** Use this endpoint for fetching open orders. It returns real-time data directly from the order service with no delay. Prefer this over `GET /api/v1/portfolio/open-orders` for accurate, up-to-date order state.\n"
+        },
+        {
+          "info": {
+            "name": "Get order book for a market",
+            "type": "http"
+          },
+          "http": {
+            "method": "GET",
+            "url": "https://testnet.pred.app/api/v1/order/:parentMarketID/orderbook/:marketID",
+            "headers": [
+              {
+                "name": "X-Wallet-Address",
+                "value": ""
+              },
+              {
+                "name": "X-Proxy-Address",
+                "value": ""
+              }
+            ],
+            "params": [
+              {
+                "name": "parentMarketID",
+                "value": "",
+                "type": "path",
+                "description": "Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+              },
+              {
+                "name": "marketID",
+                "value": "",
+                "type": "path",
+                "description": "Market ID (bytes32 hex). See **Market Discovery** for what market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+              },
+              {
+                "name": "depth",
+                "value": "",
+                "type": "query",
+                "description": "Order book depth (1–100). Default 20."
+              },
+              {
+                "name": "include_metadata",
+                "value": "",
+                "type": "query",
+                "description": "Include orderbook metadata (e.g. spread, mid price, cross_matching_enabled). Default true."
+              }
+            ]
+          },
+          "docs": "Retrieve the order book (bids and asks) for a specific market.\nPrices are in **cents**, sizes are in **shares**.\n"
+        }
+      ]
+    }
+  ],
+  "bundled": true
+}

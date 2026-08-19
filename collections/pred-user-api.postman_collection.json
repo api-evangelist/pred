@@ -1,0 +1,371 @@
+{
+  "item": [
+    {
+      "id": "7d6b03d8-37dd-4381-adc4-68a9d21df7fa",
+      "name": "User",
+      "description": {
+        "content": "Safe approval endpoints for enabling trading on your proxy wallet.\n\n## Safe approval signature — raw secp256k1\n\n- Sign the `transactionHash` from prepare response **directly** (raw secp256k1)\n- **No EIP-191 prefix** / no `personal_sign`\n- Format: `0x<r><s><v>` (132 hex chars) with low-s normalization\n- `v` normalized to 27 or 28\n\n**MANDATORY: After completing Safe approval (prepare, sign, execute), you MUST call `POST /api/v1/auth/login-with-signature` again to get a fresh JWT with `is_enabled_trading=true`. Without this re-login, order placement/cancellation will fail with \"trading not enabled\". A token refresh alone is NOT sufficient.**\n",
+        "type": "text/plain"
+      },
+      "item": [
+        {
+          "id": "a2604f6b-12a4-4bc5-8a72-fd81022de1bf",
+          "name": "Prepare Safe approval transaction",
+          "request": {
+            "name": "Prepare Safe approval transaction",
+            "description": {
+              "content": "Prepare a Safe wallet approval transaction. Send `safe_wallet_address` = your `proxy_wallet_addr` from login; sign the returned `transactionHash` with raw secp256k1 (no EIP-191); then call execute with signature and data.\n\nSee **Trading Enablement** section for full flow and mandatory re-login after execute.\n",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "user",
+                "safe-approval",
+                "prepare"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"safe_wallet_address\": \"<string>\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "id": "e57b4aac-b8d0-4698-a5f7-8631080983de",
+              "name": "Transaction data prepared",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "user",
+                    "safe-approval",
+                    "prepare"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"safe_wallet_address\": \"<string>\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"data\": {\n    \"data\": {\n      \"approvalAmount\": \"string\",\n      \"baseGas\": \"string\",\n      \"chainId\": \"string\",\n      \"data\": \"string\",\n      \"gasPrice\": \"string\",\n      \"gasToken\": \"string\",\n      \"nonce\": \"string\",\n      \"operation\": 4142,\n      \"refundReceiver\": \"string\",\n      \"safeAddress\": \"string\",\n      \"safeTxGas\": \"string\",\n      \"spenderAddress\": \"string\",\n      \"to\": \"string\",\n      \"tokenAddress\": \"string\",\n      \"transactionHash\": \"string\",\n      \"value\": \"string\"\n    }\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "e2d827a6-286c-4084-8615-d16d38066207",
+              "name": "Authentication required or failed",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "user",
+                    "safe-approval",
+                    "prepare"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"safe_wallet_address\": \"<string>\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": \"string\",\n    \"message\": \"string\",\n    \"details\": \"string\"\n  },\n  \"message\": \"string\",\n  \"success\": false\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "bfdf40a3-d187-4cc5-b6fc-3be6c6ea394a",
+          "name": "Execute Safe approval transaction",
+          "request": {
+            "name": "Execute Safe approval transaction",
+            "description": {
+              "content": "Execute with the raw secp256k1 signature of `transactionHash` from prepare. See **Trading Enablement** section for mandatory re-login after this call (required for order placement).\n",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "user",
+                "safe-approval",
+                "execute"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"signature\": \"<string>\",\n  \"data\": {\n    \"approvalAmount\": \"<string>\",\n    \"baseGas\": \"<string>\",\n    \"chainId\": \"<string>\",\n    \"data\": \"<string>\",\n    \"gasPrice\": \"<string>\",\n    \"gasToken\": \"<string>\",\n    \"nonce\": \"<string>\",\n    \"operation\": \"<integer>\",\n    \"refundReceiver\": \"<string>\",\n    \"safeAddress\": \"<string>\",\n    \"safeTxGas\": \"<string>\",\n    \"spenderAddress\": \"<string>\",\n    \"to\": \"<string>\",\n    \"tokenAddress\": \"<string>\",\n    \"transactionHash\": \"<string>\",\n    \"value\": \"<string>\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "id": "442692f5-1e99-45c0-a168-d01d940e8a1b",
+              "name": "Approval executed",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "user",
+                    "safe-approval",
+                    "execute"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"signature\": \"<string>\",\n  \"data\": {\n    \"approvalAmount\": \"string\",\n    \"baseGas\": \"string\",\n    \"chainId\": \"string\",\n    \"data\": \"string\",\n    \"gasPrice\": \"string\",\n    \"gasToken\": \"string\",\n    \"nonce\": \"string\",\n    \"operation\": 3199,\n    \"refundReceiver\": \"string\",\n    \"safeAddress\": \"string\",\n    \"safeTxGas\": \"string\",\n    \"spenderAddress\": \"string\",\n    \"to\": \"string\",\n    \"tokenAddress\": \"string\",\n    \"transactionHash\": \"string\",\n    \"value\": \"string\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"data\": {\n    \"is_enabled_trading\": true\n  },\n  \"message\": \"string\",\n  \"error\": {\n    \"code\": \"string\",\n    \"message\": \"string\",\n    \"details\": \"string\"\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "61240acd-9304-4740-a6d5-6fa157d5e7ad",
+              "name": "Authentication required or failed",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "user",
+                    "safe-approval",
+                    "execute"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"signature\": \"<string>\",\n  \"data\": {\n    \"approvalAmount\": \"string\",\n    \"baseGas\": \"string\",\n    \"chainId\": \"string\",\n    \"data\": \"string\",\n    \"gasPrice\": \"string\",\n    \"gasToken\": \"string\",\n    \"nonce\": \"string\",\n    \"operation\": 3199,\n    \"refundReceiver\": \"string\",\n    \"safeAddress\": \"string\",\n    \"safeTxGas\": \"string\",\n    \"spenderAddress\": \"string\",\n    \"to\": \"string\",\n    \"tokenAddress\": \"string\",\n    \"transactionHash\": \"string\",\n    \"value\": \"string\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": \"string\",\n    \"message\": \"string\",\n    \"details\": \"string\"\n  },\n  \"message\": \"string\",\n  \"success\": false\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "02d4d7cf-566c-4ac0-a099-cc0b17e30dae",
+              "name": "Transaction execution failed",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "user",
+                    "safe-approval",
+                    "execute"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"signature\": \"<string>\",\n  \"data\": {\n    \"approvalAmount\": \"string\",\n    \"baseGas\": \"string\",\n    \"chainId\": \"string\",\n    \"data\": \"string\",\n    \"gasPrice\": \"string\",\n    \"gasToken\": \"string\",\n    \"nonce\": \"string\",\n    \"operation\": 3199,\n    \"refundReceiver\": \"string\",\n    \"safeAddress\": \"string\",\n    \"safeTxGas\": \"string\",\n    \"spenderAddress\": \"string\",\n    \"to\": \"string\",\n    \"tokenAddress\": \"string\",\n    \"transactionHash\": \"string\",\n    \"value\": \"string\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Internal Server Error",
+              "code": 500,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": \"string\",\n    \"message\": \"string\",\n    \"details\": \"string\"\n  },\n  \"message\": \"string\",\n  \"success\": false\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        }
+      ],
+      "event": []
+    }
+  ],
+  "event": [],
+  "variable": [
+    {
+      "type": "string",
+      "value": "https://testnet.pred.app",
+      "key": "baseUrl"
+    }
+  ],
+  "info": {
+    "_postman_id": "68fe04da-38c1-43a1-a635-0f71b13846dc",
+    "name": "PRED Trading Platform Authentication User API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": {
+      "content": "Required headers, token refresh, and EIP-712 CreateProxy signature for login. For overview, getting started, and environment configuration, see **Overview**.\n\n## Required headers\n\n- `Authorization: Bearer <token>`\n  (for authenticated endpoints)\n- `X-API-Key: <api_key>`\n  (required for login-with-signature only)\n- `X-Wallet-Address: <wallet_address>`\n  (for order and portfolio endpoints)\n- `X-Proxy-Address: <proxy_wallet_address>`\n  (for order and portfolio endpoints)\n\n**Token refresh:** Access tokens are automatically refreshed by the SDK whenever their remaining lifetime drops below the configured threshold. The default threshold is **5 minutes**, and can be overridden via the `RefreshThresholdSeconds` client option.\n\n## EIP-712 login signature — CreateProxy\n\nFormat: `0x<r><s><v>` (132 hex characters). Low-s normalized: `s <= curveOrderHalf`.\n\n**Domain (NO version field):** All values below are ENV-specific; use the row for your chosen environment (see Environment configuration in **Overview**).\n```\nEIP712Domain type: \"EIP712Domain(string name,uint256 chainId,address verifyingContract)\"\nname: \"Pred Contract Proxy Factory\"\nchainId:        <Chain ID from environment table — Testnet 84532, Mainnet 8453>\nverifyingContract: <Login Contract from environment table>\n```\n\n**Message:**\n```\nCreateProxy type: \"CreateProxy(address paymentToken,uint256 payment,address paymentReceiver)\"\npaymentToken: 0x0000000000000000000000000000000000000000\npayment: 0\npaymentReceiver: 0x0000000000000000000000000000000000000000\n```\n\n**Normalization constants:**\n- `curveOrder = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141`\n- `curveOrderHalf = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0`\n",
+      "type": "text/plain"
+    }
+  }
+}

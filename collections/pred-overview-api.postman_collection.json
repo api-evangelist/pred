@@ -1,0 +1,90 @@
+{
+  "item": [
+    {
+      "id": "61b930fc-b2d1-4625-b5e8-5d35b4476b76",
+      "name": "Overview",
+      "description": {
+        "content": "## About PRED\n\nPRED is a fully decentralized prediction market platform built on Base (Ethereum L2), enabling users to trade on real-world events with LONG and SHORT positions—similar to perpetual futures trading.\n\n**LONG positions** profit when the event occurs (YES outcome), while **SHORT positions** profit when it doesn't (NO outcome). PRED uses a decentralized architecture where users maintain full custody of their funds through Gnosis Safe proxy wallets, requiring cryptographic signatures (EIP-712) for every order.\n\nOn first use, the platform automatically creates a Gnosis Safe proxy wallet for each user and requires funding it with USDC. All orders are signed by your EOA (Externally Owned Account) to authorize the proxy wallet to execute trades.\n\n## Getting started\n\n**Step 1:** Call `POST /api/v1/auth/login-with-signature` with `X-API-Key` header and EIP-712 CreateProxy signature. Save from the response:\n- `access_token`\n- `refresh_token`\n- `proxy_wallet_addr`\n- `user_id`\n- `is_enabled_trading`\n\n**Step 1b (if `is_enabled_trading` is `false` or missing):** Do these in order — (a) `POST /api/v1/user/safe-approval/prepare` with `safe_wallet_address = proxy_wallet_addr`; (b) Sign the returned `transactionHash` using raw secp256k1 (no EIP-191 prefix); (c) `POST /api/v1/user/safe-approval/execute` with `{ signature, data }`; (d) **MANDATORY: Call `POST /api/v1/auth/login-with-signature` again** to get a fresh JWT with `is_enabled_trading=true`. Without this re-login, order placement will fail.\n\n**Before trading:** discover valid parent/child market IDs from `GET /api/v1/market-discovery/discover?verbose=true&limit=50&offset=0`. Page with `offset += limit` until `data.total` is exhausted. Use only rows where `parent_market_data.status == \"active\"` and the child `markets[].status == \"active\"`; treat terminal child statuses such as `resolved` or `redeemed` as not quote/trade eligible. `verbose=true` is required for the fields most trading clients need: `parent_market_data.parent_market_id`, `parent_market_data.contract_address`, `parent_market_data.parent_market_type`, `parent_market_data.parent_market_family`, and fixture metadata. The order contract for signatures must come from the discovered parent row.\n\n**Step 2:** `GET /api/v1/order/{parentMarketID}/orderbook/{marketID}` — prices in cents, sizes in shares.\n\n**Step 3:** `POST /api/v1/order/{parentMarketID}/place` with EIP-712 Order signature. Amount: Long = `(price*qty)/100`, Short = `((100-price)*qty)/100`.\n\n**Step 4:** `GET /api/v1/portfolio/positions`\n\n**Step 5:** `GET /api/v1/order/{parentMarketID}/open-orders` (recommended, real-time)\n\n**Step 6:** `DELETE /api/v1/order/{parentMarketID}/cancel`\n\nFor login signature details (CreateProxy domain, message, normalization), see **Authentication**.\n\nFor what `parent_market_id` and `market_id` are and how to obtain them, see **Market Discovery**.\n\n## X-API-Key\n\nThe `X-API-Key` header is **required** to use PRED's login-with-signature endpoint (`POST /api/v1/auth/login-with-signature`). Please reach out to PRED to request an API key.\n\n## Testing APIs from this UI\n\n**Method 1 — Scalar client (recommended):** Click **Try it** on any endpoint; in the modal that opens, click **Open API client**. This opens the Scalar API client in a new context where you can send requests without CORS issues.\n\n**Method 2 — Disable CORS in browser:** Calling the API directly from the \"Try it\" UI in this documentation may fail with **CORS errors** (browsers block cross-origin requests by default). To test from here, disable CORS in your browser.\n\n### Safari — disable cross-origin restrictions\n\nSafari is the only major browser with a native menu toggle that does not require restarting or using the command line.\n\n1. **Enable Develop menu:** Go to **Safari > Settings > Advanced** and check **\"Show features for web developers\"**.\n2. **Disable restrictions:** In the **Develop** menu at the top, select **Disable Cross-Origin Restrictions**.\n3. **Refresh** the documentation page for the change to take effect.\n\n(For other browsers, use their developer-mode or extension options to disable CORS for this origin, or call the API from your own app or a tool like curl.)\n\n## Environment configuration\n\n**All of the following are environment-specific.** Choose **Testnet** or **Mainnet** first; then use the values from that row for base URL, chain ID, and chain type (login body).\n\n**IMPORTANT for order signatures:** do **not** hardcode order contract from this table when placing orders. For each parent market, use `parent_market_data.contract_address` from market discovery (`GET /api/v1/market-discovery/discover?verbose=true&limit=50&offset=0` or `GET /api/v1/market-discovery/parents/{parentMarketID}`) as the EIP-712 `verifyingContract`. Different markets can use different order contract addresses.\n\n| Environment | Base URL (ENV-specific) | Chain ID (ENV-specific) | Chain Type login body (ENV-specific) | Login Contract (ENV-specific) | Order Contract (ENV-specific) |\n|-------------|------------------------|-------------------------|--------------------------------------|------------------------------|------------------------------|\n| **Testnet** | `https://testnet.pred.app` | 84532 | `base-sepolia` | `0x306b5C979b812BD6eE6767043A24c5D8870e292A` | `0xc76DC1c16E672f04b8faD103269E7474FA620a7B` |\n| **Mainnet** | `https://www.pred.app` | 8453 | `base` | `0xA077e7aaBF2e3c0155F83789e95f46602D03F7f0` | `0x1938Af63B717B80ea62ccB4CCBf799F8a28dEFB0` |\n\n**Chain type in login body:**\n- Testnet: `base-sepolia`\n- Mainnet: `base` (not `base-mainnet`)\n\n## How to deposit funds to wallet\n\nSend **USDC on Base** to your **proxy_wallet_address** (returned in the response from `POST /api/v1/auth/login-with-signature`). The proxy wallet is the Gnosis Safe that holds your trading collateral; all orders are executed from this wallet.\n\n**Trial run:** Send 5 USDC (or any minimal amount) as a test. Then place a trade, get it matched, and confirm a position is created (e.g. via `GET /api/v1/portfolio/positions`). This end-to-end flow verifies funding, login, order placement, and position tracking.\n",
+        "type": "text/plain"
+      },
+      "item": [
+        {
+          "id": "17c57b9a-edbb-4869-afa9-5d769c69c9a1",
+          "name": "Overview — About PRED, getting started",
+          "request": {
+            "name": "Overview — About PRED, getting started",
+            "description": {
+              "content": "See the **Overview** tag description for: About PRED, getting started, X-API-Key, testing APIs, and environment configuration.\n",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                ""
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [
+            {
+              "id": "f8047f05-6246-43f8-83a5-69a583ea9eeb",
+              "name": "Documentation only",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    ""
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "method": "GET",
+                "body": {}
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "text/plain"
+                }
+              ],
+              "body": "",
+              "cookie": [],
+              "_postman_previewlanguage": "text"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        }
+      ],
+      "event": []
+    }
+  ],
+  "event": [],
+  "variable": [
+    {
+      "type": "string",
+      "value": "https://testnet.pred.app",
+      "key": "baseUrl"
+    }
+  ],
+  "info": {
+    "_postman_id": "52383fe5-61d0-4698-8c21-faf1c51fc08f",
+    "name": "PRED Trading Platform Authentication Overview API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": {
+      "content": "Required headers, token refresh, and EIP-712 CreateProxy signature for login. For overview, getting started, and environment configuration, see **Overview**.\n\n## Required headers\n\n- `Authorization: Bearer <token>`\n  (for authenticated endpoints)\n- `X-API-Key: <api_key>`\n  (required for login-with-signature only)\n- `X-Wallet-Address: <wallet_address>`\n  (for order and portfolio endpoints)\n- `X-Proxy-Address: <proxy_wallet_address>`\n  (for order and portfolio endpoints)\n\n**Token refresh:** Access tokens are automatically refreshed by the SDK whenever their remaining lifetime drops below the configured threshold. The default threshold is **5 minutes**, and can be overridden via the `RefreshThresholdSeconds` client option.\n\n## EIP-712 login signature — CreateProxy\n\nFormat: `0x<r><s><v>` (132 hex characters). Low-s normalized: `s <= curveOrderHalf`.\n\n**Domain (NO version field):** All values below are ENV-specific; use the row for your chosen environment (see Environment configuration in **Overview**).\n```\nEIP712Domain type: \"EIP712Domain(string name,uint256 chainId,address verifyingContract)\"\nname: \"Pred Contract Proxy Factory\"\nchainId:        <Chain ID from environment table — Testnet 84532, Mainnet 8453>\nverifyingContract: <Login Contract from environment table>\n```\n\n**Message:**\n```\nCreateProxy type: \"CreateProxy(address paymentToken,uint256 payment,address paymentReceiver)\"\npaymentToken: 0x0000000000000000000000000000000000000000\npayment: 0\npaymentReceiver: 0x0000000000000000000000000000000000000000\n```\n\n**Normalization constants:**\n- `curveOrder = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141`\n- `curveOrderHalf = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0`\n",
+      "type": "text/plain"
+    }
+  }
+}

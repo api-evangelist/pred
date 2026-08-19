@@ -1,0 +1,332 @@
+{
+  "item": [
+    {
+      "id": "659bdf86-bb7e-406a-af22-c8282d8ea396",
+      "name": "Market Discovery",
+      "description": {
+        "content": "Market information and discovery (public; no auth). Use this section to understand **parent_market_id** and **market_id** and to list all markets.\n\n## What are parent_market_id and market_id?\n\n- **parent_market_id:** Identifies a parent market (e.g. a fixture or event). It groups one or more child markets. Order and orderbook paths are scoped by parent (e.g. `GET /api/v1/order/{parentMarketID}/orderbook/{marketID}`). Cancel and open-orders endpoints are also per parent.\n- **market_id:** Identifies a specific (child) market within a parent (e.g. one outcome: Team A, Team B, or Draw). Used in place order body (`market_id`), orderbook path (`marketID`), and cancel body. Each parent can have multiple child markets; each child has its own `market_id`.\n\nYou need both when placing orders (parent in the path, market_id in the body) and when fetching orderbooks (parent and market in the path).\n\n## Getting parent_market_id and market_id\n\n**Get all markets:** Call `GET /api/v1/market-discovery/discover?verbose=true&limit=50&offset=0`, then continue paging with `offset += limit` until all `data.total` rows are consumed. `verbose=true` is required for the trading-critical fields that non-verbose responses can omit: `parent_market_data.parent_market_id`, `parent_market_data.contract_address`, `parent_market_data.parent_market_type`, `parent_market_data.parent_market_family`, and fixture fields such as `fixture.fixture_id` and `fixture.game_start_time`. The response shape is `data.parent_markets_list[]`, where each entry has `parent_market_data`, optional `fixture`, optional `team_data`, and child `markets[]`.\n\n**Runtime eligibility used by market-maker style clients:** first filter your own configured markets to `active`; then require the discovered parent row to have `parent_market_data.status == \"active\"`; then require the specific child row in `markets[]` to have `status == \"active\"`. Child statuses such as `resolved` or `redeemed` are terminal and should be treated as not quote/trade eligible. For market makers, also validate the Polymarket/PRED orderbook or external liquidity source for the child before enabling quoting.\n\n**Important field mapping:** use `parent_market_data.parent_market_id` as the parent path parameter, `markets[].market_id` as the child `market_id`, `parent_market_data.contract_address` as the EIP-712 `verifyingContract`, `parent_market_data.parent_market_family` for family-level config, `parent_market_data.parent_market_type` to distinguish fixtures from generic/futures markets, and `fixture.game_start_time` for fixture/live-window logic.\n\nTo get details for a single parent (including its child market IDs and statuses), call `GET /api/v1/market-discovery/parents/{parentMarketID}`.\n\n## Endpoints\n\n- `GET /api/v1/market-discovery/discover?verbose=true&limit=50&offset=0` — paginated discovery feed for parent markets, child markets, contract addresses, market family/type, and fixture context.\n- `GET /api/v1/market-discovery/parents/{parentMarketID}` — details for one parent, including child markets.\n",
+        "type": "text/plain"
+      },
+      "item": [
+        {
+          "id": "fdc8f581-61be-4db0-a2d4-7b2c905f4e6c",
+          "name": "Get market discovery feed",
+          "request": {
+            "name": "Get market discovery feed",
+            "description": {
+              "content": "Returns discovery entries with parent market data, fixture context, team data, and markets.\nTrading clients should call this endpoint with `verbose=true` and paginate with `limit`/`offset`\nuntil `data.total` is exhausted. Recommended page size for SDK/market-maker style clients is\n`limit=50`; avoid bursts above roughly 10 discovery requests per second.\n\n`verbose=true` is required so `parent_market_data.parent_market_id`,\n`parent_market_data.contract_address`, `parent_market_data.parent_market_type`,\n`parent_market_data.parent_market_family`, and fixture metadata are included reliably.\nNon-verbose responses can omit these fields.\n\nUse `data.parent_markets_list[].parent_market_data.contract_address` as EIP-712\n`verifyingContract` when signing place orders for that parent market.\n\nRuntime eligibility convention used by market-maker style clients:\n- require parent `parent_market_data.status == \"active\"`;\n- require the target child `markets[].status == \"active\"`;\n- treat child statuses such as `resolved` or `redeemed` as terminal/not quote eligible;\n- validate external/orderbook liquidity before enabling a market for automated quoting.\n**Public endpoint — no auth required.**\n",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "market-discovery",
+                "discover"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [
+                {
+                  "disabled": false,
+                  "key": "verbose",
+                  "value": "true",
+                  "description": "Must be true for trading clients; includes parent_market_id, contract_address, parent_market_type, parent_market_family, fixture metadata, and other verbose parent fields."
+                },
+                {
+                  "disabled": false,
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Pagination limit. Recommended value for full-feed clients is 50; continue paging until data.total is exhausted."
+                },
+                {
+                  "disabled": false,
+                  "key": "offset",
+                  "value": "0",
+                  "description": "Pagination offset. Start at 0 and increment by limit for each page."
+                }
+              ],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "auth": null
+          },
+          "response": [
+            {
+              "id": "9d65cc96-f934-49be-a12d-991c8ba2102a",
+              "name": "Discovery feed response",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "market-discovery",
+                    "discover"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "verbose",
+                      "value": "true"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20"
+                    },
+                    {
+                      "key": "offset",
+                      "value": "0"
+                    }
+                  ],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "body": {}
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"data\": {\n    \"parent_markets_list\": [\n      {\n        \"league_data\": {\n          \"league_id\": \"string\"\n        },\n        \"parent_market_data\": {\n          \"parent_market_id\": \"string\",\n          \"contract_address\": \"string\",\n          \"parent_market_type\": \"string\",\n          \"parent_market_family\": \"string\",\n          \"canonical_name\": \"string\",\n          \"title\": \"string\",\n          \"status\": \"string\",\n          \"markets_open\": \"2010-11-08T17:16:10.747Z\",\n          \"market_line\": \"string\"\n        },\n        \"fixture\": {\n          \"fixture_id\": \"string\",\n          \"game_start_time\": \"1970-11-19T19:43:00.989Z\",\n          \"game_status\": \"string\",\n          \"home_team_id\": \"string\",\n          \"home_team_score\": 5542,\n          \"away_team_id\": \"string\",\n          \"away_team_score\": 7985,\n          \"group_by\": \"string\",\n          \"match_day\": 1701,\n          \"canonical_name\": \"string\"\n        },\n        \"team_data\": [\n          {\n            \"team_id\": \"string\",\n            \"logo_url\": \"string\",\n            \"theme_color\": \"string\"\n          },\n          {\n            \"team_id\": \"string\",\n            \"logo_url\": \"string\",\n            \"theme_color\": \"string\"\n          }\n        ],\n        \"markets\": [\n          {\n            \"market_id\": \"string\",\n            \"name\": \"string\",\n            \"team_id\": \"string\",\n            \"status\": \"string\"\n          },\n          {\n            \"market_id\": \"string\",\n            \"name\": \"string\",\n            \"team_id\": \"string\",\n            \"status\": \"string\"\n          }\n        ]\n      },\n      {\n        \"league_data\": {\n          \"league_id\": \"string\"\n        },\n        \"parent_market_data\": {\n          \"parent_market_id\": \"string\",\n          \"contract_address\": \"string\",\n          \"parent_market_type\": \"string\",\n          \"parent_market_family\": \"string\",\n          \"canonical_name\": \"string\",\n          \"title\": \"string\",\n          \"status\": \"string\",\n          \"markets_open\": \"1991-10-16T15:36:14.919Z\",\n          \"market_line\": \"string\"\n        },\n        \"fixture\": {\n          \"fixture_id\": \"string\",\n          \"game_start_time\": \"1966-01-05T13:02:21.735Z\",\n          \"game_status\": \"string\",\n          \"home_team_id\": \"string\",\n          \"home_team_score\": 5543,\n          \"away_team_id\": \"string\",\n          \"away_team_score\": 7013,\n          \"group_by\": \"string\",\n          \"match_day\": 2891,\n          \"canonical_name\": \"string\"\n        },\n        \"team_data\": [\n          {\n            \"team_id\": \"string\",\n            \"logo_url\": \"string\",\n            \"theme_color\": \"string\"\n          },\n          {\n            \"team_id\": \"string\",\n            \"logo_url\": \"string\",\n            \"theme_color\": \"string\"\n          }\n        ],\n        \"markets\": [\n          {\n            \"market_id\": \"string\",\n            \"name\": \"string\",\n            \"team_id\": \"string\",\n            \"status\": \"string\"\n          },\n          {\n            \"market_id\": \"string\",\n            \"name\": \"string\",\n            \"team_id\": \"string\",\n            \"status\": \"string\"\n          }\n        ]\n      }\n    ],\n    \"aggregated_data\": [\n      {\n        \"canonical_name\": \"string\",\n        \"super_parent_market_volume\": \"string\"\n      },\n      {\n        \"canonical_name\": \"string\",\n        \"super_parent_market_volume\": \"string\"\n      }\n    ],\n    \"limit\": 5676,\n    \"offset\": 505,\n    \"total\": 3850\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "6636b77a-41fd-4ae7-9d49-ee59bf65d59d",
+              "name": "Internal server error",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "market-discovery",
+                    "discover"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "verbose",
+                      "value": "true"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20"
+                    },
+                    {
+                      "key": "offset",
+                      "value": "0"
+                    }
+                  ],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "body": {}
+              },
+              "status": "Internal Server Error",
+              "code": 500,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": \"string\",\n    \"message\": \"string\",\n    \"details\": \"string\"\n  },\n  \"message\": \"string\",\n  \"success\": false\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "5d7ef086-8355-4679-a729-b2878002e643",
+          "name": "Get parent market details",
+          "request": {
+            "name": "Get parent market details",
+            "description": {
+              "content": "Get parent market details including child market IDs and statuses.\nUse this when you already know a parent market ID and need to confirm its current\nparent status, child `markets[].status`, market family/type, and contract address.\nFor full-market discovery, prefer the paginated\n`GET /api/v1/market-discovery/discover?verbose=true&limit=50&offset=0` flow.\n\nTrading/quoting clients should require parent `status == \"active\"` and child\n`markets[].status == \"active\"` before enabling a child market. Treat child statuses\nsuch as `resolved` or `redeemed` as terminal/not quote eligible.\n**Public endpoint — no auth required.**\n",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "market-discovery",
+                "parents",
+                ":parentMarketID"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "parentMarketID",
+                  "description": "(Required) Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "auth": null
+          },
+          "response": [
+            {
+              "id": "6d2a401a-46e3-434d-be3a-33753329e915",
+              "name": "Parent market details",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "market-discovery",
+                    "parents",
+                    ":parentMarketID"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "parentMarketID",
+                      "description": "(Required) Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "body": {}
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"data\": {\n    \"parent_market_data\": {\n      \"parent_market_id\": \"string\",\n      \"canonical_name\": \"string\",\n      \"title\": \"string\",\n      \"markets_open\": \"2022-05-01T15:59:40.838Z\",\n      \"status\": \"string\",\n      \"parent_market_family\": \"string\",\n      \"market_line\": \"string\",\n      \"rules\": \"string\",\n      \"parent_market_volume\": \"string\",\n      \"contract_type\": \"string\",\n      \"contract_address\": \"string\",\n      \"logo_url\": \"string\",\n      \"theme_color\": \"string\",\n      \"parent_market_type\": \"string\"\n    },\n    \"markets\": [\n      {\n        \"market_id\": \"string\",\n        \"team_id\": \"string\",\n        \"name\": \"string\",\n        \"logo_url\": \"string\",\n        \"alternate_name\": \"string\",\n        \"status\": \"string\",\n        \"tick_size\": \"string\",\n        \"rules\": \"string\",\n        \"ltp\": \"string\",\n        \"volume\": \"string\",\n        \"mid_price\": \"string\",\n        \"percentage_change\": \"string\"\n      },\n      {\n        \"market_id\": \"string\",\n        \"team_id\": \"string\",\n        \"name\": \"string\",\n        \"logo_url\": \"string\",\n        \"alternate_name\": \"string\",\n        \"status\": \"string\",\n        \"tick_size\": \"string\",\n        \"rules\": \"string\",\n        \"ltp\": \"string\",\n        \"volume\": \"string\",\n        \"mid_price\": \"string\",\n        \"percentage_change\": \"string\"\n      }\n    ]\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "9bd33894-4316-4e2b-a178-716cedb2a271",
+              "name": "Parent market not found",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "market-discovery",
+                    "parents",
+                    ":parentMarketID"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "parentMarketID",
+                      "description": "(Required) Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "body": {}
+              },
+              "status": "Not Found",
+              "code": 404,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": \"string\",\n    \"message\": \"string\",\n    \"details\": \"string\"\n  },\n  \"message\": \"string\",\n  \"success\": false\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        }
+      ],
+      "event": []
+    }
+  ],
+  "event": [],
+  "variable": [
+    {
+      "type": "string",
+      "value": "https://testnet.pred.app",
+      "key": "baseUrl"
+    }
+  ],
+  "info": {
+    "_postman_id": "d75aca41-6e6b-4b13-84f5-8cfbfa001243",
+    "name": "PRED Trading Platform Authentication Market Discovery API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": {
+      "content": "Required headers, token refresh, and EIP-712 CreateProxy signature for login. For overview, getting started, and environment configuration, see **Overview**.\n\n## Required headers\n\n- `Authorization: Bearer <token>`\n  (for authenticated endpoints)\n- `X-API-Key: <api_key>`\n  (required for login-with-signature only)\n- `X-Wallet-Address: <wallet_address>`\n  (for order and portfolio endpoints)\n- `X-Proxy-Address: <proxy_wallet_address>`\n  (for order and portfolio endpoints)\n\n**Token refresh:** Access tokens are automatically refreshed by the SDK whenever their remaining lifetime drops below the configured threshold. The default threshold is **5 minutes**, and can be overridden via the `RefreshThresholdSeconds` client option.\n\n## EIP-712 login signature — CreateProxy\n\nFormat: `0x<r><s><v>` (132 hex characters). Low-s normalized: `s <= curveOrderHalf`.\n\n**Domain (NO version field):** All values below are ENV-specific; use the row for your chosen environment (see Environment configuration in **Overview**).\n```\nEIP712Domain type: \"EIP712Domain(string name,uint256 chainId,address verifyingContract)\"\nname: \"Pred Contract Proxy Factory\"\nchainId:        <Chain ID from environment table — Testnet 84532, Mainnet 8453>\nverifyingContract: <Login Contract from environment table>\n```\n\n**Message:**\n```\nCreateProxy type: \"CreateProxy(address paymentToken,uint256 payment,address paymentReceiver)\"\npaymentToken: 0x0000000000000000000000000000000000000000\npayment: 0\npaymentReceiver: 0x0000000000000000000000000000000000000000\n```\n\n**Normalization constants:**\n- `curveOrder = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141`\n- `curveOrderHalf = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0`\n",
+      "type": "text/plain"
+    }
+  }
+}

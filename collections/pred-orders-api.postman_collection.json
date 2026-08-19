@@ -1,0 +1,1714 @@
+{
+  "item": [
+    {
+      "id": "728cc4a7-3c99-40bc-8618-5eb80259d383",
+      "name": "Orders",
+      "description": {
+        "content": "Order placement, cancellation, and management endpoints.\n\n## EIP-712 order signature\n\nAll orders must be signed using EIP-712. Format: `0x<r><s><v>` (132 hex characters), low-s normalized.\n\n**Domain (HAS version field):** `chainId` is ENV-specific. `verifyingContract` must come from market discovery for the specific parent market.\n```\nEIP712Domain type: \"EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)\"\nname: \"Pred CTF Exchange\"\nversion: \"1\"\nchainId:        <Chain ID from environment table — Testnet 84532, Mainnet 8453>\nverifyingContract: <parent_market_data.contract_address from discovery for this parent market>\n```\n\n**Order contract source (MANDATORY):** Use `parent_market_data.contract_address` from market discovery for the target parent market. Do not assume one static contract per environment; markets can have different order contract addresses.\n\n**Order type (FIELD ORDER IS CRITICAL):**\n```\n\"Order(uint256 salt,address maker,address signer,address taker,uint256 price,uint256 quantity,uint256 expiration,uint256 nonce,bytes32 questionId,uint256 feeRateBps,uint8 intent,uint8 signatureType)\"\n```\n\n**Field meanings:**\n- `salt`: `\"02\"` + 10-digit random number (e.g. `\"020123456789\"`); stringified integer\n- `maker`: proxy wallet address (from login `proxy_wallet_addr`)\n- `signer`: EOA wallet address\n- `taker`: `0x0000000000000000000000000000000000000000` (always zero)\n- `price`: wei-scaled = `(priceCents / 100) * 1e6` (e.g. 55 cents → 550000; not `55 * 1e6`)\n- `quantity`: wei-scaled = `quantity * 1e6` (e.g. 100 shares → 100000000)\n- `expiration`: Unix seconds; `0` = GTC\n- `nonce`: `0` (always)\n- `questionId`: market ID as bytes32; left-pad with zeros if hex &lt; 64 chars\n- `feeRateBps`: `0` (default)\n- `intent`: LONG = `0`, SHORT = `1` (uint8)\n- `signatureType`: `2` (always; uint8)\n\n## Cross-matching\n\nCross-matching applies only **across child markets of the same parent market** (e.g. a parent with 3-outcome markets: Team A, Team B, Draw). It is enabled when the parent is configured for it.\n\n**When it applies:** A key validity condition — **Long orders summing to 100c across all markets of a cross-match–enabled parent form a valid match** (e.g. Long 25 in A + Long 25 in B + Long 50 in C = 100c).\n\n**How it works:** Orders match across child markets by combining liquidity from peer (sibling) markets into synthetic bid/ask levels. For a given child market, synthetic *Short* levels are derived from *Long* orders in peer child markets (e.g. Long 25 in B + Long 25 in C + Long 25 in D → synthetic Short at 75 for market A). An incoming Long order in A can match against these synthetic Short levels; execution is against the underlying peer Long orders. Similarly, synthetic *Long* levels can be built from *Short* orders in peer child markets; an incoming Short order can match against them.\n\n**Self-match:** Self-match is **allowed** when cross-matching is involved: the same user can match against their own liquidity **across different child markets within the same parent**. For example, your Long orders in two outcomes can provide synthetic liquidity that your Short order in the third outcome matches against. This is intentional and valid for cross-match–enabled parents. Self-match *within* the same market may be restricted; self-match *across* markets in the same parent is allowed.\n\n**Implications for API users:**\n- Orderbook responses may include synthetic levels; orderbook metadata can indicate `cross_matching_enabled` (e.g. in WebSocket orderbook payloads).\n- Placing Long orders in multiple child markets can create combined liquidity (e.g. summing to 100c Long across the parent's markets is a valid match). A Short order in another child market may match—including self-match—against that liquidity.\n- 422 / validation may still apply for other liquidity or validation reasons.\n\n**Example:** Long 25 in markets B, C, D → synthetic Short 75 for market A; or Long 25+25+50 across A, B, C = 100c valid match.\n\n## Units\n\n- `price`: **cents** (e.g. 55.0 = $0.55)\n- `quantity`: **shares**\n- `amount`: **USD**\n- `fee_rate_bps`: **basis points** (default 0)\n- `timestamp`: **Unix seconds** (in place order payload; within 15s of server time)\n",
+        "type": "text/plain"
+      },
+      "item": [
+        {
+          "id": "5d94e52c-fb4f-4cf3-a849-fb696ed9b964",
+          "name": "Place a new order",
+          "request": {
+            "name": "Place a new order",
+            "description": {
+              "content": "Place an order (limit, market, or IOC). Requires EIP-712 Order signature; see **Orders** section for domain, type hash, field meanings, and wei conversion.\n\n**Order types:** `limit` (resting), `market` (fill at best), `ioc` (immediate-or-cancel). **Expiration:** Unix seconds; `0` = GTC. **Idempotency:** `salt` is the key; same salt returns cached response.\n\n**Validation:** Price > 0, < 100, multiple of tick size; side long/short; quantity ≥ 5, at most 1 decimal; timestamp within 15s of server (seconds); fee_rate_bps = 0.\n",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "order",
+                ":parentMarketID",
+                "place"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "parentMarketID",
+                  "description": "(Required) Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+                }
+              ]
+            },
+            "header": [
+              {
+                "disabled": false,
+                "description": "(Required) Your EOA wallet address",
+                "key": "X-Wallet-Address",
+                "value": "<string>"
+              },
+              {
+                "disabled": false,
+                "description": "(Required) Your proxy wallet address (from login response)",
+                "key": "X-Proxy-Address",
+                "value": "<string>"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"salt\": \"<string>\",\n  \"market_id\": \"<string>\",\n  \"side\": \"<string>\",\n  \"price\": \"<string>\",\n  \"quantity\": \"<string>\",\n  \"signature\": \"<string>\",\n  \"timestamp\": \"<long>\",\n  \"user_id\": \"<string>\",\n  \"token_id\": \"<string>\",\n  \"amount\": \"<string>\",\n  \"is_low_priority\": false,\n  \"type\": \"limit\",\n  \"expiration\": 0,\n  \"reduce_only\": false,\n  \"fee_rate_bps\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "id": "21f080b8-4369-498d-abee-87437abe207d",
+              "name": "Order accepted for processing",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "order",
+                    ":parentMarketID",
+                    "place"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "parentMarketID",
+                      "description": "(Required) Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your EOA wallet address",
+                    "key": "X-Wallet-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your proxy wallet address (from login response)",
+                    "key": "X-Proxy-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"salt\": \"<string>\",\n  \"market_id\": \"<string>\",\n  \"side\": \"<string>\",\n  \"price\": \"<string>\",\n  \"quantity\": \"<string>\",\n  \"signature\": \"<string>\",\n  \"timestamp\": \"<long>\",\n  \"user_id\": \"<string>\",\n  \"token_id\": \"<string>\",\n  \"amount\": \"<string>\",\n  \"is_low_priority\": false,\n  \"type\": \"limit\",\n  \"expiration\": 0,\n  \"reduce_only\": false,\n  \"fee_rate_bps\": 0\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Accepted",
+              "code": 202,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"status\": \"failed\",\n  \"order_id\": \"string\",\n  \"message\": \"string\"\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "1ec4e64b-de49-4c1b-ae22-49457b05a90d",
+              "name": "Invalid request",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "order",
+                    ":parentMarketID",
+                    "place"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "parentMarketID",
+                      "description": "(Required) Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your EOA wallet address",
+                    "key": "X-Wallet-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your proxy wallet address (from login response)",
+                    "key": "X-Proxy-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"salt\": \"<string>\",\n  \"market_id\": \"<string>\",\n  \"side\": \"<string>\",\n  \"price\": \"<string>\",\n  \"quantity\": \"<string>\",\n  \"signature\": \"<string>\",\n  \"timestamp\": \"<long>\",\n  \"user_id\": \"<string>\",\n  \"token_id\": \"<string>\",\n  \"amount\": \"<string>\",\n  \"is_low_priority\": false,\n  \"type\": \"limit\",\n  \"expiration\": 0,\n  \"reduce_only\": false,\n  \"fee_rate_bps\": 0\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": \"string\",\n    \"message\": \"string\",\n    \"details\": \"string\"\n  },\n  \"message\": \"string\",\n  \"success\": false\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "7a5d33bd-584a-4113-8cec-74fa258ecedb",
+              "name": "Authentication required or failed",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "order",
+                    ":parentMarketID",
+                    "place"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "parentMarketID",
+                      "description": "(Required) Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your EOA wallet address",
+                    "key": "X-Wallet-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your proxy wallet address (from login response)",
+                    "key": "X-Proxy-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"salt\": \"<string>\",\n  \"market_id\": \"<string>\",\n  \"side\": \"<string>\",\n  \"price\": \"<string>\",\n  \"quantity\": \"<string>\",\n  \"signature\": \"<string>\",\n  \"timestamp\": \"<long>\",\n  \"user_id\": \"<string>\",\n  \"token_id\": \"<string>\",\n  \"amount\": \"<string>\",\n  \"is_low_priority\": false,\n  \"type\": \"limit\",\n  \"expiration\": 0,\n  \"reduce_only\": false,\n  \"fee_rate_bps\": 0\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": \"string\",\n    \"message\": \"string\",\n    \"details\": \"string\"\n  },\n  \"message\": \"string\",\n  \"success\": false\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "a8ab8c34-51ab-41f8-9521-07d9f74299da",
+              "name": "Insufficient liquidity or self-match (when not allowed)",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "order",
+                    ":parentMarketID",
+                    "place"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "parentMarketID",
+                      "description": "(Required) Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your EOA wallet address",
+                    "key": "X-Wallet-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your proxy wallet address (from login response)",
+                    "key": "X-Proxy-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"salt\": \"<string>\",\n  \"market_id\": \"<string>\",\n  \"side\": \"<string>\",\n  \"price\": \"<string>\",\n  \"quantity\": \"<string>\",\n  \"signature\": \"<string>\",\n  \"timestamp\": \"<long>\",\n  \"user_id\": \"<string>\",\n  \"token_id\": \"<string>\",\n  \"amount\": \"<string>\",\n  \"is_low_priority\": false,\n  \"type\": \"limit\",\n  \"expiration\": 0,\n  \"reduce_only\": false,\n  \"fee_rate_bps\": 0\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unprocessable Entity (WebDAV) (RFC 4918)",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": \"string\",\n    \"message\": \"string\",\n    \"details\": \"string\"\n  },\n  \"message\": \"string\",\n  \"success\": false\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "86f29ca9-1b8f-470f-9a5f-3ec60d21ceb4",
+          "name": "Cancel an order",
+          "request": {
+            "name": "Cancel an order",
+            "description": {
+              "content": "Cancel a single open order by order ID and market ID.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "order",
+                ":parentMarketID",
+                "cancel"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "parentMarketID",
+                  "description": "(Required) Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+                }
+              ]
+            },
+            "header": [
+              {
+                "disabled": false,
+                "description": "(Required) Your EOA wallet address",
+                "key": "X-Wallet-Address",
+                "value": "<string>"
+              },
+              {
+                "disabled": false,
+                "description": "(Required) Your proxy wallet address (from login response)",
+                "key": "X-Proxy-Address",
+                "value": "<string>"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "DELETE",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"<string>\",\n  \"market_id\": \"<string>\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "id": "04f72f8c-14aa-4629-b787-0ab8c730d061",
+              "name": "Order cancelled",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "order",
+                    ":parentMarketID",
+                    "cancel"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "parentMarketID",
+                      "description": "(Required) Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your EOA wallet address",
+                    "key": "X-Wallet-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your proxy wallet address (from login response)",
+                    "key": "X-Proxy-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "DELETE",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"order_id\": \"<string>\",\n  \"market_id\": \"<string>\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"status\": \"user_cancelled\",\n  \"order_id\": \"string\",\n  \"message\": \"string\",\n  \"success\": false\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "836b4da9-2b2a-43b7-9bf0-087d72d4e3fd",
+              "name": "Cancellation submitted",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "order",
+                    ":parentMarketID",
+                    "cancel"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "parentMarketID",
+                      "description": "(Required) Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your EOA wallet address",
+                    "key": "X-Wallet-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your proxy wallet address (from login response)",
+                    "key": "X-Proxy-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "DELETE",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"order_id\": \"<string>\",\n  \"market_id\": \"<string>\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Accepted",
+              "code": 202,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"status\": \"user_cancelled\",\n  \"order_id\": \"string\",\n  \"message\": \"string\",\n  \"success\": false\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "99f417bc-9ed7-4696-892d-c8ed2165739f",
+              "name": "Authentication required or failed",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "order",
+                    ":parentMarketID",
+                    "cancel"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "parentMarketID",
+                      "description": "(Required) Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your EOA wallet address",
+                    "key": "X-Wallet-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your proxy wallet address (from login response)",
+                    "key": "X-Proxy-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "DELETE",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"order_id\": \"<string>\",\n  \"market_id\": \"<string>\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": \"string\",\n    \"message\": \"string\",\n    \"details\": \"string\"\n  },\n  \"message\": \"string\",\n  \"success\": false\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "c07dd6b5-a766-494d-b4d1-46e5566d5269",
+              "name": "Order not found",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "order",
+                    ":parentMarketID",
+                    "cancel"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "parentMarketID",
+                      "description": "(Required) Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your EOA wallet address",
+                    "key": "X-Wallet-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your proxy wallet address (from login response)",
+                    "key": "X-Proxy-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "DELETE",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"order_id\": \"<string>\",\n  \"market_id\": \"<string>\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": \"string\",\n    \"message\": \"string\",\n    \"details\": \"string\"\n  },\n  \"message\": \"string\",\n  \"success\": false\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "a9eb7b05-84d1-406f-a24e-b3f411e1ff81",
+          "name": "Cancel all orders for a parent market",
+          "request": {
+            "name": "Cancel all orders for a parent market",
+            "description": {
+              "content": "Cancel all open orders for a parent market. No request body required.\n",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "order",
+                ":parentMarketID",
+                "cancel",
+                "all"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "parentMarketID",
+                  "description": "(Required) Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+                }
+              ]
+            },
+            "header": [
+              {
+                "disabled": false,
+                "description": "(Required) Your EOA wallet address",
+                "key": "X-Wallet-Address",
+                "value": "<string>"
+              },
+              {
+                "disabled": false,
+                "description": "(Required) Your proxy wallet address (from login response)",
+                "key": "X-Proxy-Address",
+                "value": "<string>"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "DELETE",
+            "auth": null
+          },
+          "response": [
+            {
+              "id": "d1082a4f-656b-4050-b6a5-5c54decb1b09",
+              "name": "All orders cancelled",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "order",
+                    ":parentMarketID",
+                    "cancel",
+                    "all"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "parentMarketID",
+                      "description": "(Required) Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your EOA wallet address",
+                    "key": "X-Wallet-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your proxy wallet address (from login response)",
+                    "key": "X-Proxy-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "DELETE",
+                "body": {}
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"string\"\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "d0c64ae0-4577-4962-8e8f-e4dfeb39a732",
+              "name": "Cancellation submitted",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "order",
+                    ":parentMarketID",
+                    "cancel",
+                    "all"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "parentMarketID",
+                      "description": "(Required) Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your EOA wallet address",
+                    "key": "X-Wallet-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your proxy wallet address (from login response)",
+                    "key": "X-Proxy-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "DELETE",
+                "body": {}
+              },
+              "status": "Accepted",
+              "code": 202,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "0a428a09-81b4-46e2-a661-fbbb4d75c55c",
+              "name": "Authentication required or failed",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "order",
+                    ":parentMarketID",
+                    "cancel",
+                    "all"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "parentMarketID",
+                      "description": "(Required) Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your EOA wallet address",
+                    "key": "X-Wallet-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your proxy wallet address (from login response)",
+                    "key": "X-Proxy-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "DELETE",
+                "body": {}
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": \"string\",\n    \"message\": \"string\",\n    \"details\": \"string\"\n  },\n  \"message\": \"string\",\n  \"success\": false\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "cf2ffdfa-5d9d-4d71-88a8-30a4840b6743",
+          "name": "Bulk cancel orders for a parent market",
+          "request": {
+            "name": "Bulk cancel orders for a parent market",
+            "description": {
+              "content": "Cancel multiple orders for a parent market. Send an array of order references.\nIf `orders` is empty, the backend fetches all open orders for this parent and cancels them.\n",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "order",
+                ":parentMarketID",
+                "cancel",
+                "bulk"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "parentMarketID",
+                  "description": "(Required) Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+                }
+              ]
+            },
+            "header": [
+              {
+                "disabled": false,
+                "description": "(Required) Your EOA wallet address",
+                "key": "X-Wallet-Address",
+                "value": "<string>"
+              },
+              {
+                "disabled": false,
+                "description": "(Required) Your proxy wallet address (from login response)",
+                "key": "X-Proxy-Address",
+                "value": "<string>"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "DELETE",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orders\": [\n    {\n      \"order_id\": \"<string>\",\n      \"market_id\": \"<string>\"\n    },\n    {\n      \"order_id\": \"<string>\",\n      \"market_id\": \"<string>\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "id": "f999e98c-5c8a-4f8d-8009-f9919529e9c5",
+              "name": "Bulk cancel completed",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "order",
+                    ":parentMarketID",
+                    "cancel",
+                    "bulk"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "parentMarketID",
+                      "description": "(Required) Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your EOA wallet address",
+                    "key": "X-Wallet-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your proxy wallet address (from login response)",
+                    "key": "X-Proxy-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "DELETE",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"orders\": [\n    {\n      \"order_id\": \"<string>\",\n      \"market_id\": \"<string>\"\n    },\n    {\n      \"order_id\": \"<string>\",\n      \"market_id\": \"<string>\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"results\": [\n    {\n      \"order_id\": \"string\",\n      \"status\": \"string\",\n      \"message\": \"string\"\n    },\n    {\n      \"order_id\": \"string\",\n      \"status\": \"string\",\n      \"message\": \"string\"\n    }\n  ],\n  \"total_requested\": 9718,\n  \"total_unique\": 1,\n  \"total_cancelled\": 9142,\n  \"total_failed\": 649\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "f4110950-2f64-45e1-bd8a-1837700f9707",
+              "name": "Bulk cancel submitted",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "order",
+                    ":parentMarketID",
+                    "cancel",
+                    "bulk"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "parentMarketID",
+                      "description": "(Required) Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your EOA wallet address",
+                    "key": "X-Wallet-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your proxy wallet address (from login response)",
+                    "key": "X-Proxy-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "DELETE",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"orders\": [\n    {\n      \"order_id\": \"<string>\",\n      \"market_id\": \"<string>\"\n    },\n    {\n      \"order_id\": \"<string>\",\n      \"market_id\": \"<string>\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Accepted",
+              "code": 202,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"results\": [\n    {\n      \"order_id\": \"string\",\n      \"status\": \"string\",\n      \"message\": \"string\"\n    },\n    {\n      \"order_id\": \"string\",\n      \"status\": \"string\",\n      \"message\": \"string\"\n    }\n  ],\n  \"total_requested\": 9718,\n  \"total_unique\": 1,\n  \"total_cancelled\": 9142,\n  \"total_failed\": 649\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "104ecc00-56a8-4ff8-be3f-0f54a019abd3",
+              "name": "Authentication required or failed",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "order",
+                    ":parentMarketID",
+                    "cancel",
+                    "bulk"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "parentMarketID",
+                      "description": "(Required) Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your EOA wallet address",
+                    "key": "X-Wallet-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your proxy wallet address (from login response)",
+                    "key": "X-Proxy-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "DELETE",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"orders\": [\n    {\n      \"order_id\": \"<string>\",\n      \"market_id\": \"<string>\"\n    },\n    {\n      \"order_id\": \"<string>\",\n      \"market_id\": \"<string>\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": \"string\",\n    \"message\": \"string\",\n    \"details\": \"string\"\n  },\n  \"message\": \"string\",\n  \"success\": false\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "4cd2583a-8d10-4755-b1a8-da637d4b6481",
+          "name": "Get open orders for a parent market (recommended)",
+          "request": {
+            "name": "Get open orders for a parent market (recommended)",
+            "description": {
+              "content": "Returns all open orders scoped to a specific parent market.\n\n**Recommended:** Use this endpoint for fetching open orders. It returns real-time data directly from the order service with no delay. Prefer this over `GET /api/v1/portfolio/open-orders` for accurate, up-to-date order state.\n",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "order",
+                ":parentMarketID",
+                "open-orders"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "parentMarketID",
+                  "description": "(Required) Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+                }
+              ]
+            },
+            "header": [
+              {
+                "disabled": false,
+                "description": "(Required) Your EOA wallet address",
+                "key": "X-Wallet-Address",
+                "value": "<string>"
+              },
+              {
+                "disabled": false,
+                "description": "(Required) Your proxy wallet address (from login response)",
+                "key": "X-Proxy-Address",
+                "value": "<string>"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "auth": null
+          },
+          "response": [
+            {
+              "id": "8c7e7746-6b86-45e2-9ce8-1b5bd15c81ad",
+              "name": "Open orders for parent",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "order",
+                    ":parentMarketID",
+                    "open-orders"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "parentMarketID",
+                      "description": "(Required) Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your EOA wallet address",
+                    "key": "X-Wallet-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your proxy wallet address (from login response)",
+                    "key": "X-Proxy-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "body": {}
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"orders\": [\n    {\n      \"order_id\": \"string\",\n      \"market_id\": \"string\",\n      \"market_name\": \"string\",\n      \"parent_market_id\": \"string\",\n      \"side\": \"short\",\n      \"price\": \"string\",\n      \"quantity\": \"string\",\n      \"remaining_quantity\": \"string\"\n    },\n    {\n      \"order_id\": \"string\",\n      \"market_id\": \"string\",\n      \"market_name\": \"string\",\n      \"parent_market_id\": \"string\",\n      \"side\": \"long\",\n      \"price\": \"string\",\n      \"quantity\": \"string\",\n      \"remaining_quantity\": \"string\"\n    }\n  ]\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "3cf77d4b-368c-4023-abff-d31967592954",
+              "name": "Authentication required or failed",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "order",
+                    ":parentMarketID",
+                    "open-orders"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "parentMarketID",
+                      "description": "(Required) Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your EOA wallet address",
+                    "key": "X-Wallet-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your proxy wallet address (from login response)",
+                    "key": "X-Proxy-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "body": {}
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": \"string\",\n    \"message\": \"string\",\n    \"details\": \"string\"\n  },\n  \"message\": \"string\",\n  \"success\": false\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "e9c6b383-8725-441e-8d6c-4857d55c1eba",
+          "name": "Get order book for a market",
+          "request": {
+            "name": "Get order book for a market",
+            "description": {
+              "content": "Retrieve the order book (bids and asks) for a specific market.\nPrices are in **cents**, sizes are in **shares**.\n",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "order",
+                ":parentMarketID",
+                "orderbook",
+                ":marketID"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [
+                {
+                  "disabled": false,
+                  "key": "depth",
+                  "value": "20",
+                  "description": "Order book depth (1–100). Default 20."
+                },
+                {
+                  "disabled": false,
+                  "key": "include_metadata",
+                  "value": "true",
+                  "description": "Include orderbook metadata (e.g. spread, mid price, cross_matching_enabled). Default true."
+                }
+              ],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "parentMarketID",
+                  "description": "(Required) Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+                },
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "marketID",
+                  "description": "(Required) Market ID (bytes32 hex). See **Market Discovery** for what market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+                }
+              ]
+            },
+            "header": [
+              {
+                "disabled": false,
+                "description": "(Required) Your EOA wallet address",
+                "key": "X-Wallet-Address",
+                "value": "<string>"
+              },
+              {
+                "disabled": false,
+                "description": "(Required) Your proxy wallet address (from login response)",
+                "key": "X-Proxy-Address",
+                "value": "<string>"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "auth": null
+          },
+          "response": [
+            {
+              "id": "338c952f-30be-483e-ac58-82ce76713aac",
+              "name": "Order book retrieved",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "order",
+                    ":parentMarketID",
+                    "orderbook",
+                    ":marketID"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "depth",
+                      "value": "20"
+                    },
+                    {
+                      "key": "include_metadata",
+                      "value": "true"
+                    }
+                  ],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "parentMarketID",
+                      "description": "(Required) Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+                    },
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "marketID",
+                      "description": "(Required) Market ID (bytes32 hex). See **Market Discovery** for what market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your EOA wallet address",
+                    "key": "X-Wallet-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your proxy wallet address (from login response)",
+                    "key": "X-Proxy-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "body": {}
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"bids\": [\n    {\n      \"price\": \"string\",\n      \"size\": \"string\"\n    },\n    {\n      \"price\": \"string\",\n      \"size\": \"string\"\n    }\n  ],\n  \"asks\": [\n    {\n      \"price\": \"string\",\n      \"size\": \"string\"\n    },\n    {\n      \"price\": \"string\",\n      \"size\": \"string\"\n    }\n  ]\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "bed98b58-e209-4259-a9e6-694c5e244620",
+              "name": "Authentication required or failed",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "order",
+                    ":parentMarketID",
+                    "orderbook",
+                    ":marketID"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "depth",
+                      "value": "20"
+                    },
+                    {
+                      "key": "include_metadata",
+                      "value": "true"
+                    }
+                  ],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "parentMarketID",
+                      "description": "(Required) Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+                    },
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "marketID",
+                      "description": "(Required) Market ID (bytes32 hex). See **Market Discovery** for what market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your EOA wallet address",
+                    "key": "X-Wallet-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your proxy wallet address (from login response)",
+                    "key": "X-Proxy-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "body": {}
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": \"string\",\n    \"message\": \"string\",\n    \"details\": \"string\"\n  },\n  \"message\": \"string\",\n  \"success\": false\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "55f54267-7c35-43c1-a590-60a4282c544c",
+              "name": "Market not found",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "v1",
+                    "order",
+                    ":parentMarketID",
+                    "orderbook",
+                    ":marketID"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "depth",
+                      "value": "20"
+                    },
+                    {
+                      "key": "include_metadata",
+                      "value": "true"
+                    }
+                  ],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "parentMarketID",
+                      "description": "(Required) Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+                    },
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "marketID",
+                      "description": "(Required) Market ID (bytes32 hex). See **Market Discovery** for what market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover)."
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your EOA wallet address",
+                    "key": "X-Wallet-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "disabled": false,
+                    "description": "(Required) Your proxy wallet address (from login response)",
+                    "key": "X-Proxy-Address",
+                    "value": "<string>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "body": {}
+              },
+              "status": "Not Found",
+              "code": 404,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": \"string\",\n    \"message\": \"string\",\n    \"details\": \"string\"\n  },\n  \"message\": \"string\",\n  \"success\": false\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        }
+      ],
+      "event": []
+    }
+  ],
+  "event": [],
+  "variable": [
+    {
+      "type": "string",
+      "value": "https://testnet.pred.app",
+      "key": "baseUrl"
+    }
+  ],
+  "info": {
+    "_postman_id": "05c5a688-de70-430b-91e4-eb4c85a2b6f2",
+    "name": "PRED Trading Platform Authentication Orders API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": {
+      "content": "Required headers, token refresh, and EIP-712 CreateProxy signature for login. For overview, getting started, and environment configuration, see **Overview**.\n\n## Required headers\n\n- `Authorization: Bearer <token>`\n  (for authenticated endpoints)\n- `X-API-Key: <api_key>`\n  (required for login-with-signature only)\n- `X-Wallet-Address: <wallet_address>`\n  (for order and portfolio endpoints)\n- `X-Proxy-Address: <proxy_wallet_address>`\n  (for order and portfolio endpoints)\n\n**Token refresh:** Access tokens are automatically refreshed by the SDK whenever their remaining lifetime drops below the configured threshold. The default threshold is **5 minutes**, and can be overridden via the `RefreshThresholdSeconds` client option.\n\n## EIP-712 login signature — CreateProxy\n\nFormat: `0x<r><s><v>` (132 hex characters). Low-s normalized: `s <= curveOrderHalf`.\n\n**Domain (NO version field):** All values below are ENV-specific; use the row for your chosen environment (see Environment configuration in **Overview**).\n```\nEIP712Domain type: \"EIP712Domain(string name,uint256 chainId,address verifyingContract)\"\nname: \"Pred Contract Proxy Factory\"\nchainId:        <Chain ID from environment table — Testnet 84532, Mainnet 8453>\nverifyingContract: <Login Contract from environment table>\n```\n\n**Message:**\n```\nCreateProxy type: \"CreateProxy(address paymentToken,uint256 payment,address paymentReceiver)\"\npaymentToken: 0x0000000000000000000000000000000000000000\npayment: 0\npaymentReceiver: 0x0000000000000000000000000000000000000000\n```\n\n**Normalization constants:**\n- `curveOrder = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141`\n- `curveOrderHalf = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0`\n",
+      "type": "text/plain"
+    }
+  }
+}

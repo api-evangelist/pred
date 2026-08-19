@@ -1,0 +1,48 @@
+{
+  "opencollection": "1.0.0",
+  "info": {
+    "name": "PRED Trading Platform Authentication User API",
+    "version": "1.0.0"
+  },
+  "items": [
+    {
+      "info": {
+        "name": "User",
+        "type": "folder"
+      },
+      "items": [
+        {
+          "info": {
+            "name": "Prepare Safe approval transaction",
+            "type": "http"
+          },
+          "http": {
+            "method": "POST",
+            "url": "https://testnet.pred.app/api/v1/user/safe-approval/prepare",
+            "body": {
+              "type": "json",
+              "data": "{}"
+            }
+          },
+          "docs": "Prepare a Safe wallet approval transaction. Send `safe_wallet_address` = your `proxy_wallet_addr` from login; sign the returned `transactionHash` with raw secp256k1 (no EIP-191); then call execute with signature and data.\n\nSee **Trading Enablement** section for full flow and mandatory re-login after execute.\n"
+        },
+        {
+          "info": {
+            "name": "Execute Safe approval transaction",
+            "type": "http"
+          },
+          "http": {
+            "method": "POST",
+            "url": "https://testnet.pred.app/api/v1/user/safe-approval/execute",
+            "body": {
+              "type": "json",
+              "data": "{}"
+            }
+          },
+          "docs": "Execute with the raw secp256k1 signature of `transactionHash` from prepare. See **Trading Enablement** section for mandatory re-login after this call (required for order placement).\n"
+        }
+      ]
+    }
+  ],
+  "bundled": true
+}
