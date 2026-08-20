@@ -335,6 +335,8 @@ apis:
   humanURL: https://pred-1.gitbook.io/pred-docs/api-reference/overview
   baseURL: https://www.pred.app
   tags:
+  - Order
+  tags_raw:
   - Orders
   properties:
   - type: OpenAPI
