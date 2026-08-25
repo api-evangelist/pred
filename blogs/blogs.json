@@ -6,14 +6,13 @@
       "feed_url": "https://pred-1.gitbook.io/pred-docs/trading/fees",
       "title": "",
       "saved": 0,
-      "method": "none",
-      "error": "parse_failed"
+      "method": "none"
     },
     {
       "source": "https://game.pred.app/rss/",
       "feed_url": "https://game.pred.app/rss/",
       "title": "",
-      "saved": 1,
+      "saved": 0,
       "method": "feed"
     },
     {
@@ -24,6 +23,6 @@
       "method": "discovered"
     }
   ],
-  "post_count": 7,
-  "fetched": "2026-08-15T12:11:08Z"
+  "post_count": 8,
+  "fetched": "2026-08-22T20:20:02Z"
 }
