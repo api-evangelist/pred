@@ -1,5 +1,5 @@
-generated: '2026-07-20'
-method: derived
+x-generated: '2026-07-20'
+x-method: derived
 workflows:
 - file: pred-trading.yml
   workflowId: login-discover-and-place-order

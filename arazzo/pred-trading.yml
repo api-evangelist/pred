@@ -4,13 +4,21 @@ info:
   version: 1.0.0
   summary: End-to-end signed-order trading flow on the Pred prediction exchange.
 sourceDescriptions:
-- name: pred
-  url: ../openapi/pred-openapi.yml
+- name: authenticationApi
+  url: ../openapi/pred-authentication-api-openapi.yml
+  type: openapi
+- name: marketDiscoveryApi
+  url: ../openapi/pred-market-discovery-api-openapi.yml
+  type: openapi
+- name: ordersApi
+  url: ../openapi/pred-orders-api-openapi.yml
+  type: openapi
+- name: portfolioApi
+  url: ../openapi/pred-portfolio-api-openapi.yml
   type: openapi
 workflows:
 - workflowId: login-discover-and-place-order
-  summary: Login with wallet signature, discover an active market, read its orderbook, place a signed
-    order, and confirm the position.
+  summary: Login with wallet signature, discover an active market, read its orderbook, place a signed order, and confirm the position.
   inputs:
     type: object
     properties:
