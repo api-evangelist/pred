@@ -1,8 +1,8 @@
-openapi: 3.1.0
+openapi: 3.2.0
 info:
   title: PRED Trading Platform Authentication API
   version: 1.0.0
-  description: "Required headers, token refresh, and EIP-712 CreateProxy signature for login. For overview, getting started, and environment configuration, see **Overview**.\n\n## Required headers\n\n- `Authorization: Bearer <token>`\n  (for authenticated endpoints)\n- `X-API-Key: <api_key>`\n  (required for login-with-signature only)\n- `X-Wallet-Address: <wallet_address>`\n  (for order and portfolio endpoints)\n- `X-Proxy-Address: <proxy_wallet_address>`\n  (for order and portfolio endpoints)\n\n**Token refresh:** Access tokens are automatically refreshed by the SDK whenever their remaining lifetime drops below the configured threshold. The default threshold is **5 minutes**, and can be overridden via the `RefreshThresholdSeconds` client option.\n\n## EIP-712 login signature — CreateProxy\n\nFormat: `0x<r><s><v>` (132 hex characters). Low-s normalized: `s <= curveOrderHalf`.\n\n**Domain (NO version field):** All values below are ENV-specific; use the row for your chosen environment (see Environment configuration in **Overview**).\n```\nEIP712Domain type: \"EIP712Domain(string name,uint256 chainId,address verifyingContract)\"\nname: \"Pred Contract Proxy Factory\"\nchainId:        <Chain ID from environment table — Testnet 84532, Mainnet 8453>\nverifyingContract: <Login Contract from environment table>\n```\n\n**Message:**\n```\nCreateProxy type: \"CreateProxy(address paymentToken,uint256 payment,address paymentReceiver)\"\npaymentToken: 0x0000000000000000000000000000000000000000\npayment: 0\npaymentReceiver: 0x0000000000000000000000000000000000000000\n```\n\n**Normalization constants:**\n- `curveOrder = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141`\n- `curveOrderHalf = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0`\n"
+  description: Required headers, token refresh, and EIP-712 CreateProxy signature for login.
 servers:
 - url: https://testnet.pred.app
   description: Testnet (ENV-specific). Base Sepolia; chain ID 84532. Use with Testnet row in Environment configuration.
@@ -10,7 +10,7 @@ servers:
   description: Mainnet (ENV-specific). Base; chain ID 8453. Use with Mainnet row in Environment configuration.
 tags:
 - name: Authentication
-  description: "Required headers, token refresh, and EIP-712 CreateProxy signature for login. For overview, getting started, and environment configuration, see **Overview**.\n\n## Required headers\n\n- `Authorization: Bearer <token>`\n  (for authenticated endpoints)\n- `X-API-Key: <api_key>`\n  (required for login-with-signature only)\n- `X-Wallet-Address: <wallet_address>`\n  (for order and portfolio endpoints)\n- `X-Proxy-Address: <proxy_wallet_address>`\n  (for order and portfolio endpoints)\n\n**Token refresh:** Access tokens are automatically refreshed by the SDK whenever their remaining lifetime drops below the configured threshold. The default threshold is **5 minutes**, and can be overridden via the `RefreshThresholdSeconds` client option.\n\n## EIP-712 login signature — CreateProxy\n\nFormat: `0x<r><s><v>` (132 hex characters). Low-s normalized: `s <= curveOrderHalf`.\n\n**Domain (NO version field):** All values below are ENV-specific; use the row for your chosen environment (see Environment configuration in **Overview**).\n```\nEIP712Domain type: \"EIP712Domain(string name,uint256 chainId,address verifyingContract)\"\nname: \"Pred Contract Proxy Factory\"\nchainId:        <Chain ID from environment table — Testnet 84532, Mainnet 8453>\nverifyingContract: <Login Contract from environment table>\n```\n\n**Message:**\n```\nCreateProxy type: \"CreateProxy(address paymentToken,uint256 payment,address paymentReceiver)\"\npaymentToken: 0x0000000000000000000000000000000000000000\npayment: 0\npaymentReceiver: 0x0000000000000000000000000000000000000000\n```\n\n**Normalization constants:**\n- `curveOrder = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141`\n- `curveOrderHalf = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0`\n"
+  description: Required headers, token refresh, and EIP-712 CreateProxy signature for login.
 paths:
   /api/v1/auth/login-with-signature:
     post:
@@ -20,9 +20,7 @@ paths:
       description: 'Authenticate using an EIP-712 CreateProxy wallet signature. **Required header:** `X-API-Key`.
 
 
-        See **Authentication** section for CreateProxy domain, message, and signature format (contract addresses, normalization).
-
-        '
+        See **Authentication** section for CreateProxy domain, message, and signature format (contract addresses, normalization).'
       operationId: loginWithSignature
       parameters:
       - name: X-API-Key
@@ -65,7 +63,7 @@ paths:
       description: 'Refresh the access token using a refresh token. The refresh token can be sent via:
 
 
-        1. **Header** (preferred): `X-Refresh-Token: <refresh_token>` — checked first
+        1. **Header** (preferred): `X-Refresh-Token: ` — checked first
 
         2. **Cookie** (fallback): `refresh_token` cookie (set automatically by login endpoint)
 
@@ -76,9 +74,7 @@ paths:
         **Token rotation:** Each refresh returns a new refresh token (via `Set-Cookie`). The old refresh token is invalidated — using it again returns 401 `REFRESH_TOKEN_ALREADY_USED`.
 
 
-        **Response includes:** new `access_token`, `user_id`, `proxy_wallet_address`, `is_enabled_trading`, and user profile data.
-
-        '
+        **Response includes:** new `access_token`, `user_id`, `proxy_wallet_address`, `is_enabled_trading`, and user profile data.'
       operationId: refreshToken
       parameters:
       - name: X-Refresh-Token
@@ -109,6 +105,19 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 components:
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Authentication required or failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
   schemas:
     RefreshTokenResponse:
       type: object
@@ -159,6 +168,15 @@ components:
                   type: boolean
         error:
           $ref: '#/components/schemas/Error'
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: string
     LoginWithSignatureRequest:
       type: object
       required:
@@ -270,28 +288,6 @@ components:
               type: string
         error:
           $ref: '#/components/schemas/Error'
-    Error:
-      type: object
-      properties:
-        code:
-          type: string
-        message:
-          type: string
-        details:
-          type: string
-  responses:
-    Unauthorized:
-      description: Authentication required or failed
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-    BadRequest:
-      description: Invalid request
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
   securitySchemes:
     BearerAuth:
       type: http

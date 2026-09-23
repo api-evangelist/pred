@@ -1,8 +1,8 @@
-openapi: 3.1.0
+openapi: 3.2.0
 info:
-  title: PRED Trading Platform Authentication Orders API
+  title: PRED Trading Platform Orders API
   version: 1.0.0
-  description: "Required headers, token refresh, and EIP-712 CreateProxy signature for login. For overview, getting started, and environment configuration, see **Overview**.\n\n## Required headers\n\n- `Authorization: Bearer <token>`\n  (for authenticated endpoints)\n- `X-API-Key: <api_key>`\n  (required for login-with-signature only)\n- `X-Wallet-Address: <wallet_address>`\n  (for order and portfolio endpoints)\n- `X-Proxy-Address: <proxy_wallet_address>`\n  (for order and portfolio endpoints)\n\n**Token refresh:** Access tokens are automatically refreshed by the SDK whenever their remaining lifetime drops below the configured threshold. The default threshold is **5 minutes**, and can be overridden via the `RefreshThresholdSeconds` client option.\n\n## EIP-712 login signature — CreateProxy\n\nFormat: `0x<r><s><v>` (132 hex characters). Low-s normalized: `s <= curveOrderHalf`.\n\n**Domain (NO version field):** All values below are ENV-specific; use the row for your chosen environment (see Environment configuration in **Overview**).\n```\nEIP712Domain type: \"EIP712Domain(string name,uint256 chainId,address verifyingContract)\"\nname: \"Pred Contract Proxy Factory\"\nchainId:        <Chain ID from environment table — Testnet 84532, Mainnet 8453>\nverifyingContract: <Login Contract from environment table>\n```\n\n**Message:**\n```\nCreateProxy type: \"CreateProxy(address paymentToken,uint256 payment,address paymentReceiver)\"\npaymentToken: 0x0000000000000000000000000000000000000000\npayment: 0\npaymentReceiver: 0x0000000000000000000000000000000000000000\n```\n\n**Normalization constants:**\n- `curveOrder = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141`\n- `curveOrderHalf = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0`\n"
+  description: Order placement, cancellation, and management endpoints.
 servers:
 - url: https://testnet.pred.app
   description: Testnet (ENV-specific). Base Sepolia; chain ID 84532. Use with Testnet row in Environment configuration.
@@ -10,112 +10,7 @@ servers:
   description: Mainnet (ENV-specific). Base; chain ID 8453. Use with Mainnet row in Environment configuration.
 tags:
 - name: Orders
-  description: 'Order placement, cancellation, and management endpoints.
-
-
-    ## EIP-712 order signature
-
-
-    All orders must be signed using EIP-712. Format: `0x<r><s><v>` (132 hex characters), low-s normalized.
-
-
-    **Domain (HAS version field):** `chainId` is ENV-specific. `verifyingContract` must come from market discovery for the specific parent market.
-
-    ```
-
-    EIP712Domain type: "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
-
-    name: "Pred CTF Exchange"
-
-    version: "1"
-
-    chainId:        <Chain ID from environment table — Testnet 84532, Mainnet 8453>
-
-    verifyingContract: <parent_market_data.contract_address from discovery for this parent market>
-
-    ```
-
-
-    **Order contract source (MANDATORY):** Use `parent_market_data.contract_address` from market discovery for the target parent market. Do not assume one static contract per environment; markets can have different order contract addresses.
-
-
-    **Order type (FIELD ORDER IS CRITICAL):**
-
-    ```
-
-    "Order(uint256 salt,address maker,address signer,address taker,uint256 price,uint256 quantity,uint256 expiration,uint256 nonce,bytes32 questionId,uint256 feeRateBps,uint8 intent,uint8 signatureType)"
-
-    ```
-
-
-    **Field meanings:**
-
-    - `salt`: `"02"` + 10-digit random number (e.g. `"020123456789"`); stringified integer
-
-    - `maker`: proxy wallet address (from login `proxy_wallet_addr`)
-
-    - `signer`: EOA wallet address
-
-    - `taker`: `0x0000000000000000000000000000000000000000` (always zero)
-
-    - `price`: wei-scaled = `(priceCents / 100) * 1e6` (e.g. 55 cents → 550000; not `55 * 1e6`)
-
-    - `quantity`: wei-scaled = `quantity * 1e6` (e.g. 100 shares → 100000000)
-
-    - `expiration`: Unix seconds; `0` = GTC
-
-    - `nonce`: `0` (always)
-
-    - `questionId`: market ID as bytes32; left-pad with zeros if hex &lt; 64 chars
-
-    - `feeRateBps`: `0` (default)
-
-    - `intent`: LONG = `0`, SHORT = `1` (uint8)
-
-    - `signatureType`: `2` (always; uint8)
-
-
-    ## Cross-matching
-
-
-    Cross-matching applies only **across child markets of the same parent market** (e.g. a parent with 3-outcome markets: Team A, Team B, Draw). It is enabled when the parent is configured for it.
-
-
-    **When it applies:** A key validity condition — **Long orders summing to 100c across all markets of a cross-match–enabled parent form a valid match** (e.g. Long 25 in A + Long 25 in B + Long 50 in C = 100c).
-
-
-    **How it works:** Orders match across child markets by combining liquidity from peer (sibling) markets into synthetic bid/ask levels. For a given child market, synthetic *Short* levels are derived from *Long* orders in peer child markets (e.g. Long 25 in B + Long 25 in C + Long 25 in D → synthetic Short at 75 for market A). An incoming Long order in A can match against these synthetic Short levels; execution is against the underlying peer Long orders. Similarly, synthetic *Long* levels can be built from *Short* orders in peer child markets; an incoming Short order can match against them.
-
-
-    **Self-match:** Self-match is **allowed** when cross-matching is involved: the same user can match against their own liquidity **across different child markets within the same parent**. For example, your Long orders in two outcomes can provide synthetic liquidity that your Short order in the third outcome matches against. This is intentional and valid for cross-match–enabled parents. Self-match *within* the same market may be restricted; self-match *across* markets in the same parent is allowed.
-
-
-    **Implications for API users:**
-
-    - Orderbook responses may include synthetic levels; orderbook metadata can indicate `cross_matching_enabled` (e.g. in WebSocket orderbook payloads).
-
-    - Placing Long orders in multiple child markets can create combined liquidity (e.g. summing to 100c Long across the parent''s markets is a valid match). A Short order in another child market may match—including self-match—against that liquidity.
-
-    - 422 / validation may still apply for other liquidity or validation reasons.
-
-
-    **Example:** Long 25 in markets B, C, D → synthetic Short 75 for market A; or Long 25+25+50 across A, B, C = 100c valid match.
-
-
-    ## Units
-
-
-    - `price`: **cents** (e.g. 55.0 = $0.55)
-
-    - `quantity`: **shares**
-
-    - `amount`: **USD**
-
-    - `fee_rate_bps`: **basis points** (default 0)
-
-    - `timestamp`: **Unix seconds** (in place order payload; within 15s of server time)
-
-    '
+  description: Order placement, cancellation, and management endpoints.
 paths:
   /api/v1/order/{parentMarketID}/place:
     post:
@@ -128,9 +23,7 @@ paths:
         **Order types:** `limit` (resting), `market` (fill at best), `ioc` (immediate-or-cancel). **Expiration:** Unix seconds; `0` = GTC. **Idempotency:** `salt` is the key; same salt returns cached response.
 
 
-        **Validation:** Price > 0, < 100, multiple of tick size; side long/short; quantity ≥ 5, at most 1 decimal; timestamp within 15s of server (seconds); fee_rate_bps = 0.
-
-        '
+        **Validation:** Price > 0, < 100, multiple of tick size; side long/short; quantity ≥ 5, at most 1 decimal; timestamp within 15s of server (seconds); fee_rate_bps = 0.'
       operationId: placeOrder
       parameters:
       - $ref: '#/components/parameters/XWalletAddress'
@@ -202,9 +95,7 @@ paths:
       tags:
       - Orders
       summary: Cancel all orders for a parent market
-      description: 'Cancel all open orders for a parent market. No request body required.
-
-        '
+      description: Cancel all open orders for a parent market. No request body required.
       operationId: cancelAllForParent
       parameters:
       - $ref: '#/components/parameters/XWalletAddress'
@@ -240,9 +131,7 @@ paths:
       summary: Bulk cancel orders for a parent market
       description: 'Cancel multiple orders for a parent market. Send an array of order references.
 
-        If `orders` is empty, the backend fetches all open orders for this parent and cancels them.
-
-        '
+        If `orders` is empty, the backend fetches all open orders for this parent and cancels them.'
       operationId: cancelOrdersBulk
       parameters:
       - $ref: '#/components/parameters/XWalletAddress'
@@ -277,9 +166,7 @@ paths:
       description: 'Returns all open orders scoped to a specific parent market.
 
 
-        **Recommended:** Use this endpoint for fetching open orders. It returns real-time data directly from the order service with no delay. Prefer this over `GET /api/v1/portfolio/open-orders` for accurate, up-to-date order state.
-
-        '
+        **Recommended:** Use this endpoint for fetching open orders. It returns real-time data directly from the order service with no delay. Prefer this over `GET /api/v1/portfolio/open-orders` for accurate, up-to-date order state.'
       operationId: getOpenOrdersForParent
       parameters:
       - $ref: '#/components/parameters/XWalletAddress'
@@ -301,9 +188,7 @@ paths:
       summary: Get order book for a market
       description: 'Retrieve the order book (bids and asks) for a specific market.
 
-        Prices are in **cents**, sizes are in **shares**.
-
-        '
+        Prices are in **cents**, sizes are in **shares**.'
       operationId: getOrderBook
       parameters:
       - $ref: '#/components/parameters/XWalletAddress'
@@ -349,19 +234,6 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
-    CancelOrderResponse:
-      type: object
-      properties:
-        status:
-          type: string
-          enum:
-          - user_cancelled
-        order_id:
-          type: string
-        message:
-          type: string
-        success:
-          type: boolean
     OpenOrdersResponse:
       type: object
       properties:
@@ -369,21 +241,66 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/OpenOrder'
-    BulkCancelOrdersRequest:
+    BulkCancelOrdersResponse:
       type: object
       properties:
-        orders:
+        results:
           type: array
-          description: Orders to cancel. If empty, cancels all open orders for the parent market.
           items:
             type: object
-            required:
-            - order_id
             properties:
               order_id:
                 type: string
-              market_id:
+              status:
                 type: string
+              message:
+                type: string
+        total_requested:
+          type: integer
+        total_unique:
+          type: integer
+        total_cancelled:
+          type: integer
+        total_failed:
+          type: integer
+    OrderResponse:
+      type: object
+      description: Place order response. See status enum for meanings.
+      properties:
+        status:
+          type: string
+          enum:
+          - order_created
+          - matched
+          - partial_matched
+          - open_order
+          - failed
+          description: 'order_created — accepted
+
+            matched — fully filled
+
+            partial_matched — partially filled
+
+            open_order — resting
+
+            failed — placement failed
+
+            '
+        order_id:
+          type: string
+          description: Unique order ID
+        message:
+          type: string
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          $ref: '#/components/schemas/Error'
+        message:
+          type: string
+        success:
+          type: boolean
+          default: false
     OpenOrder:
       type: object
       properties:
@@ -409,53 +326,30 @@ components:
         remaining_quantity:
           type: string
           description: Remaining quantity in shares
-    OrderBookLevel:
+    Error:
       type: object
       properties:
-        price:
+        code:
           type: string
-          description: Price in cents
-        size:
-          type: string
-          description: Size in shares
-    OrderBookResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-        bids:
-          type: array
-          description: Buy orders sorted by price descending
-          items:
-            $ref: '#/components/schemas/OrderBookLevel'
-        asks:
-          type: array
-          description: Sell orders sorted by price ascending
-          items:
-            $ref: '#/components/schemas/OrderBookLevel'
-    ErrorResponse:
-      type: object
-      properties:
-        error:
-          $ref: '#/components/schemas/Error'
         message:
           type: string
-        success:
-          type: boolean
-          default: false
-    CancelOrderRequest:
+        details:
+          type: string
+    BulkCancelOrdersRequest:
       type: object
-      required:
-      - order_id
-      - market_id
       properties:
-        order_id:
-          type: string
-          description: Order ID to cancel
-        market_id:
-          type: string
-          description: Market ID (bytes32 hex). See **Market Discovery** for what market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover).
-          pattern: ^0x[a-fA-F0-9]{64}$
+        orders:
+          type: array
+          description: Orders to cancel. If empty, cancels all open orders for the parent market.
+          items:
+            type: object
+            required:
+            - order_id
+            properties:
+              order_id:
+                type: string
+              market_id:
+                type: string
     PlaceOrderRequest:
       type: object
       required:
@@ -527,74 +421,65 @@ components:
           type: integer
           description: Fee rate in basis points. Must be 0 (fees not supported).
           default: 0
-    Error:
+    OrderBookLevel:
       type: object
       properties:
-        code:
+        price:
           type: string
-        message:
+          description: Price in cents
+        size:
           type: string
-        details:
-          type: string
-    OrderResponse:
+          description: Size in shares
+    CancelOrderResponse:
       type: object
-      description: Place order response. See status enum for meanings.
       properties:
         status:
           type: string
           enum:
-          - order_created
-          - matched
-          - partial_matched
-          - open_order
-          - failed
-          description: 'order_created — accepted
-
-            matched — fully filled
-
-            partial_matched — partially filled
-
-            open_order — resting
-
-            failed — placement failed
-
-            '
+          - user_cancelled
         order_id:
           type: string
-          description: Unique order ID
         message:
           type: string
-    BulkCancelOrdersResponse:
+        success:
+          type: boolean
+    OrderBookResponse:
       type: object
       properties:
-        results:
+        success:
+          type: boolean
+        bids:
           type: array
+          description: Buy orders sorted by price descending
           items:
-            type: object
-            properties:
-              order_id:
-                type: string
-              status:
-                type: string
-              message:
-                type: string
-        total_requested:
-          type: integer
-        total_unique:
-          type: integer
-        total_cancelled:
-          type: integer
-        total_failed:
-          type: integer
+            $ref: '#/components/schemas/OrderBookLevel'
+        asks:
+          type: array
+          description: Sell orders sorted by price ascending
+          items:
+            $ref: '#/components/schemas/OrderBookLevel'
+    CancelOrderRequest:
+      type: object
+      required:
+      - order_id
+      - market_id
+      properties:
+        order_id:
+          type: string
+          description: Order ID to cancel
+        market_id:
+          type: string
+          description: Market ID (bytes32 hex). See **Market Discovery** for what market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover).
+          pattern: ^0x[a-fA-F0-9]{64}$
   responses:
-    Unauthorized:
-      description: Authentication required or failed
+    BadRequest:
+      description: Invalid request
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-    BadRequest:
-      description: Invalid request
+    Unauthorized:
+      description: Authentication required or failed
       content:
         application/json:
           schema:

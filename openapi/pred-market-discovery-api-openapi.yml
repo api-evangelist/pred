@@ -1,8 +1,8 @@
-openapi: 3.1.0
+openapi: 3.2.0
 info:
-  title: PRED Trading Platform Authentication Market Discovery API
+  title: PRED Trading Platform Market Discovery API
   version: 1.0.0
-  description: "Required headers, token refresh, and EIP-712 CreateProxy signature for login. For overview, getting started, and environment configuration, see **Overview**.\n\n## Required headers\n\n- `Authorization: Bearer <token>`\n  (for authenticated endpoints)\n- `X-API-Key: <api_key>`\n  (required for login-with-signature only)\n- `X-Wallet-Address: <wallet_address>`\n  (for order and portfolio endpoints)\n- `X-Proxy-Address: <proxy_wallet_address>`\n  (for order and portfolio endpoints)\n\n**Token refresh:** Access tokens are automatically refreshed by the SDK whenever their remaining lifetime drops below the configured threshold. The default threshold is **5 minutes**, and can be overridden via the `RefreshThresholdSeconds` client option.\n\n## EIP-712 login signature — CreateProxy\n\nFormat: `0x<r><s><v>` (132 hex characters). Low-s normalized: `s <= curveOrderHalf`.\n\n**Domain (NO version field):** All values below are ENV-specific; use the row for your chosen environment (see Environment configuration in **Overview**).\n```\nEIP712Domain type: \"EIP712Domain(string name,uint256 chainId,address verifyingContract)\"\nname: \"Pred Contract Proxy Factory\"\nchainId:        <Chain ID from environment table — Testnet 84532, Mainnet 8453>\nverifyingContract: <Login Contract from environment table>\n```\n\n**Message:**\n```\nCreateProxy type: \"CreateProxy(address paymentToken,uint256 payment,address paymentReceiver)\"\npaymentToken: 0x0000000000000000000000000000000000000000\npayment: 0\npaymentReceiver: 0x0000000000000000000000000000000000000000\n```\n\n**Normalization constants:**\n- `curveOrder = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141`\n- `curveOrderHalf = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0`\n"
+  description: Market information and discovery (public; no auth).
 servers:
 - url: https://testnet.pred.app
   description: Testnet (ENV-specific). Base Sepolia; chain ID 84532. Use with Testnet row in Environment configuration.
@@ -10,43 +10,7 @@ servers:
   description: Mainnet (ENV-specific). Base; chain ID 8453. Use with Mainnet row in Environment configuration.
 tags:
 - name: Market Discovery
-  description: 'Market information and discovery (public; no auth). Use this section to understand **parent_market_id** and **market_id** and to list all markets.
-
-
-    ## What are parent_market_id and market_id?
-
-
-    - **parent_market_id:** Identifies a parent market (e.g. a fixture or event). It groups one or more child markets. Order and orderbook paths are scoped by parent (e.g. `GET /api/v1/order/{parentMarketID}/orderbook/{marketID}`). Cancel and open-orders endpoints are also per parent.
-
-    - **market_id:** Identifies a specific (child) market within a parent (e.g. one outcome: Team A, Team B, or Draw). Used in place order body (`market_id`), orderbook path (`marketID`), and cancel body. Each parent can have multiple child markets; each child has its own `market_id`.
-
-
-    You need both when placing orders (parent in the path, market_id in the body) and when fetching orderbooks (parent and market in the path).
-
-
-    ## Getting parent_market_id and market_id
-
-
-    **Get all markets:** Call `GET /api/v1/market-discovery/discover?verbose=true&limit=50&offset=0`, then continue paging with `offset += limit` until all `data.total` rows are consumed. `verbose=true` is required for the trading-critical fields that non-verbose responses can omit: `parent_market_data.parent_market_id`, `parent_market_data.contract_address`, `parent_market_data.parent_market_type`, `parent_market_data.parent_market_family`, and fixture fields such as `fixture.fixture_id` and `fixture.game_start_time`. The response shape is `data.parent_markets_list[]`, where each entry has `parent_market_data`, optional `fixture`, optional `team_data`, and child `markets[]`.
-
-
-    **Runtime eligibility used by market-maker style clients:** first filter your own configured markets to `active`; then require the discovered parent row to have `parent_market_data.status == "active"`; then require the specific child row in `markets[]` to have `status == "active"`. Child statuses such as `resolved` or `redeemed` are terminal and should be treated as not quote/trade eligible. For market makers, also validate the Polymarket/PRED orderbook or external liquidity source for the child before enabling quoting.
-
-
-    **Important field mapping:** use `parent_market_data.parent_market_id` as the parent path parameter, `markets[].market_id` as the child `market_id`, `parent_market_data.contract_address` as the EIP-712 `verifyingContract`, `parent_market_data.parent_market_family` for family-level config, `parent_market_data.parent_market_type` to distinguish fixtures from generic/futures markets, and `fixture.game_start_time` for fixture/live-window logic.
-
-
-    To get details for a single parent (including its child market IDs and statuses), call `GET /api/v1/market-discovery/parents/{parentMarketID}`.
-
-
-    ## Endpoints
-
-
-    - `GET /api/v1/market-discovery/discover?verbose=true&limit=50&offset=0` — paginated discovery feed for parent markets, child markets, contract addresses, market family/type, and fixture context.
-
-    - `GET /api/v1/market-discovery/parents/{parentMarketID}` — details for one parent, including child markets.
-
-    '
+  description: Market information and discovery (public; no auth).
 paths:
   /api/v1/market-discovery/discover:
     get:
@@ -86,9 +50,7 @@ paths:
 
         - validate external/orderbook liquidity before enabling a market for automated quoting.
 
-        **Public endpoint — no auth required.**
-
-        '
+        **Public endpoint — no auth required.**'
       operationId: getAllParentMarkets
       parameters:
       - name: verbose
@@ -147,9 +109,7 @@ paths:
 
         such as `resolved` or `redeemed` as terminal/not quote eligible.
 
-        **Public endpoint — no auth required.**
-
-        '
+        **Public endpoint — no auth required.**'
       operationId: getParentMarketDetails
       parameters:
       - $ref: '#/components/parameters/ParentMarketIDPath'
@@ -168,6 +128,82 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
+    ParentMarketDetailsResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            parent_market_data:
+              type: object
+              properties:
+                parent_market_id:
+                  type: string
+                canonical_name:
+                  type: string
+                title:
+                  type: string
+                markets_open:
+                  type: string
+                  format: date-time
+                status:
+                  type: string
+                parent_market_family:
+                  type: string
+                market_line:
+                  type: string
+                rules:
+                  type: string
+                parent_market_volume:
+                  type: string
+                contract_type:
+                  type: string
+                contract_address:
+                  type: string
+                logo_url:
+                  type: string
+                theme_color:
+                  type: string
+                parent_market_type:
+                  type: string
+            markets:
+              type: array
+              items:
+                type: object
+                properties:
+                  market_id:
+                    type: string
+                  team_id:
+                    type: string
+                  name:
+                    type: string
+                  logo_url:
+                    type: string
+                  alternate_name:
+                    type: string
+                  status:
+                    type: string
+                  tick_size:
+                    type: string
+                  rules:
+                    type: string
+                  ltp:
+                    type: string
+                  volume:
+                    type: string
+                  mid_price:
+                    type: string
+                  percentage_change:
+                    type: string
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: string
     MarketDiscoveryDiscoverItem:
       type: object
       properties:
@@ -258,6 +294,16 @@ components:
               status:
                 type: string
                 description: Child market status. Require `active` for trading/quoting; treat `resolved` and `redeemed` as terminal.
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          $ref: '#/components/schemas/Error'
+        message:
+          type: string
+        success:
+          type: boolean
+          default: false
     MarketDiscoveryDiscoverResponse:
       type: object
       properties:
@@ -285,92 +331,6 @@ components:
             total:
               type: integer
               description: Total number of parent-market entries available across all pages.
-    ErrorResponse:
-      type: object
-      properties:
-        error:
-          $ref: '#/components/schemas/Error'
-        message:
-          type: string
-        success:
-          type: boolean
-          default: false
-    ParentMarketDetailsResponse:
-      type: object
-      properties:
-        data:
-          type: object
-          properties:
-            parent_market_data:
-              type: object
-              properties:
-                parent_market_id:
-                  type: string
-                canonical_name:
-                  type: string
-                title:
-                  type: string
-                markets_open:
-                  type: string
-                  format: date-time
-                status:
-                  type: string
-                parent_market_family:
-                  type: string
-                market_line:
-                  type: string
-                rules:
-                  type: string
-                parent_market_volume:
-                  type: string
-                contract_type:
-                  type: string
-                contract_address:
-                  type: string
-                logo_url:
-                  type: string
-                theme_color:
-                  type: string
-                parent_market_type:
-                  type: string
-            markets:
-              type: array
-              items:
-                type: object
-                properties:
-                  market_id:
-                    type: string
-                  team_id:
-                    type: string
-                  name:
-                    type: string
-                  logo_url:
-                    type: string
-                  alternate_name:
-                    type: string
-                  status:
-                    type: string
-                  tick_size:
-                    type: string
-                  rules:
-                    type: string
-                  ltp:
-                    type: string
-                  volume:
-                    type: string
-                  mid_price:
-                    type: string
-                  percentage_change:
-                    type: string
-    Error:
-      type: object
-      properties:
-        code:
-          type: string
-        message:
-          type: string
-        details:
-          type: string
   parameters:
     ParentMarketIDPath:
       name: parentMarketID
