@@ -1,6 +1,6 @@
 openapi: 3.2.0
 info:
-  title: PRED Trading Platform Web Socket API
+  title: PRED Trading Platform WebSocket API
   version: 1.0.0
   description: PRED uses Ably for real-time WebSocket data.
 servers:
@@ -49,15 +49,6 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
-    Error:
-      type: object
-      properties:
-        code:
-          type: string
-        message:
-          type: string
-        details:
-          type: string
     AblyTokenDetails:
       type: object
       description: Raw Ably TokenDetails JSON (not wrapped in success/data envelope)
@@ -82,6 +73,15 @@ components:
         capability:
           type: string
           description: JSON-encoded Ably capability map
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: string
     ErrorResponse:
       type: object
       properties:

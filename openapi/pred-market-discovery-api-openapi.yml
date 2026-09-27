@@ -127,7 +127,43 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 components:
+  parameters:
+    ParentMarketIDPath:
+      name: parentMarketID
+      in: path
+      required: true
+      description: Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover).
+      schema:
+        type: string
+        pattern: ^0x[a-fA-F0-9]{64}$
   schemas:
+    MarketDiscoveryDiscoverResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            parent_markets_list:
+              type: array
+              description: Paginated list of parent-market discovery entries. Full-feed clients should keep requesting pages until `offset + parent_markets_list.length >= total`.
+              items:
+                $ref: '#/components/schemas/MarketDiscoveryDiscoverItem'
+            aggregated_data:
+              type: array
+              items:
+                type: object
+                properties:
+                  canonical_name:
+                    type: string
+                  super_parent_market_volume:
+                    type: string
+            limit:
+              type: integer
+            offset:
+              type: integer
+            total:
+              type: integer
+              description: Total number of parent-market entries available across all pages.
     ParentMarketDetailsResponse:
       type: object
       properties:
@@ -195,15 +231,6 @@ components:
                     type: string
                   percentage_change:
                     type: string
-    Error:
-      type: object
-      properties:
-        code:
-          type: string
-        message:
-          type: string
-        details:
-          type: string
     MarketDiscoveryDiscoverItem:
       type: object
       properties:
@@ -294,6 +321,15 @@ components:
               status:
                 type: string
                 description: Child market status. Require `active` for trading/quoting; treat `resolved` and `redeemed` as terminal.
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: string
     ErrorResponse:
       type: object
       properties:
@@ -304,42 +340,6 @@ components:
         success:
           type: boolean
           default: false
-    MarketDiscoveryDiscoverResponse:
-      type: object
-      properties:
-        data:
-          type: object
-          properties:
-            parent_markets_list:
-              type: array
-              description: Paginated list of parent-market discovery entries. Full-feed clients should keep requesting pages until `offset + parent_markets_list.length >= total`.
-              items:
-                $ref: '#/components/schemas/MarketDiscoveryDiscoverItem'
-            aggregated_data:
-              type: array
-              items:
-                type: object
-                properties:
-                  canonical_name:
-                    type: string
-                  super_parent_market_volume:
-                    type: string
-            limit:
-              type: integer
-            offset:
-              type: integer
-            total:
-              type: integer
-              description: Total number of parent-market entries available across all pages.
-  parameters:
-    ParentMarketIDPath:
-      name: parentMarketID
-      in: path
-      required: true
-      description: Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover).
-      schema:
-        type: string
-        pattern: ^0x[a-fA-F0-9]{64}$
   securitySchemes:
     BearerAuth:
       type: http
