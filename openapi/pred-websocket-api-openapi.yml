@@ -48,7 +48,43 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 components:
+  parameters:
+    XWalletAddress:
+      name: X-Wallet-Address
+      in: header
+      required: true
+      description: Your EOA wallet address
+      schema:
+        type: string
+        pattern: ^0x[a-fA-F0-9]{40}$
+    XProxyAddress:
+      name: X-Proxy-Address
+      in: header
+      required: true
+      description: Your proxy wallet address (from login response)
+      schema:
+        type: string
+        pattern: ^0x[a-fA-F0-9]{40}$
   schemas:
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: string
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          $ref: '#/components/schemas/Error'
+        message:
+          type: string
+        success:
+          type: boolean
+          default: false
     AblyTokenDetails:
       type: object
       description: Raw Ably TokenDetails JSON (not wrapped in success/data envelope)
@@ -73,42 +109,6 @@ components:
         capability:
           type: string
           description: JSON-encoded Ably capability map
-    Error:
-      type: object
-      properties:
-        code:
-          type: string
-        message:
-          type: string
-        details:
-          type: string
-    ErrorResponse:
-      type: object
-      properties:
-        error:
-          $ref: '#/components/schemas/Error'
-        message:
-          type: string
-        success:
-          type: boolean
-          default: false
-  parameters:
-    XWalletAddress:
-      name: X-Wallet-Address
-      in: header
-      required: true
-      description: Your EOA wallet address
-      schema:
-        type: string
-        pattern: ^0x[a-fA-F0-9]{40}$
-    XProxyAddress:
-      name: X-Proxy-Address
-      in: header
-      required: true
-      description: Your proxy wallet address (from login response)
-      schema:
-        type: string
-        pattern: ^0x[a-fA-F0-9]{40}$
   responses:
     Unauthorized:
       description: Authentication required or failed

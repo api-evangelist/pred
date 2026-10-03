@@ -66,77 +66,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 components:
-  responses:
-    Unauthorized:
-      description: Authentication required or failed
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
   schemas:
-    PrepareSafeApprovalRequest:
-      type: object
-      required:
-      - safe_wallet_address
-      properties:
-        safe_wallet_address:
-          type: string
-          description: Proxy wallet address from login response (proxy_wallet_addr)
-          pattern: ^0x[a-fA-F0-9]{40}$
-    Error:
-      type: object
-      properties:
-        code:
-          type: string
-        message:
-          type: string
-        details:
-          type: string
-    ExecuteSafeApprovalRequest:
-      type: object
-      required:
-      - signature
-      - data
-      properties:
-        signature:
-          type: string
-          description: 'Raw secp256k1 signature of transactionHash from prepare response.
-
-            Format: 0x<r><s><v> (132 hex chars). No EIP-191 prefix. Low-s normalized.
-
-            '
-          pattern: ^0x[a-fA-F0-9]{130}$
-        data:
-          $ref: '#/components/schemas/SafeTransactionData'
-    ErrorResponse:
-      type: object
-      properties:
-        error:
-          $ref: '#/components/schemas/Error'
-        message:
-          type: string
-        success:
-          type: boolean
-          default: false
-    ExecuteSafeApprovalResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-        data:
-          type: object
-          properties:
-            is_enabled_trading:
-              type: boolean
-              description: 'Trading enabled status after Safe approval.
-
-                **⚠️ Even when true here, you MUST call login-with-signature again to get a fresh JWT.**
-
-                '
-        message:
-          type: string
-        error:
-          $ref: '#/components/schemas/Error'
     PrepareSafeApprovalResponse:
       type: object
       properties:
@@ -184,6 +114,76 @@ components:
           description: Hash to sign with raw secp256k1 (no EIP-191 prefix)
         value:
           type: string
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: string
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          $ref: '#/components/schemas/Error'
+        message:
+          type: string
+        success:
+          type: boolean
+          default: false
+    PrepareSafeApprovalRequest:
+      type: object
+      required:
+      - safe_wallet_address
+      properties:
+        safe_wallet_address:
+          type: string
+          description: Proxy wallet address from login response (proxy_wallet_addr)
+          pattern: ^0x[a-fA-F0-9]{40}$
+    ExecuteSafeApprovalResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            is_enabled_trading:
+              type: boolean
+              description: 'Trading enabled status after Safe approval.
+
+                **⚠️ Even when true here, you MUST call login-with-signature again to get a fresh JWT.**
+
+                '
+        message:
+          type: string
+        error:
+          $ref: '#/components/schemas/Error'
+    ExecuteSafeApprovalRequest:
+      type: object
+      required:
+      - signature
+      - data
+      properties:
+        signature:
+          type: string
+          description: 'Raw secp256k1 signature of transactionHash from prepare response.
+
+            Format: 0x<r><s><v> (132 hex chars). No EIP-191 prefix. Low-s normalized.
+
+            '
+          pattern: ^0x[a-fA-F0-9]{130}$
+        data:
+          $ref: '#/components/schemas/SafeTransactionData'
+  responses:
+    Unauthorized:
+      description: Authentication required or failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
   securitySchemes:
     BearerAuth:
       type: http

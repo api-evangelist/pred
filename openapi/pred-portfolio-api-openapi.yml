@@ -141,82 +141,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 components:
-  responses:
-    Unauthorized:
-      description: Authentication required or failed
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-  parameters:
-    XWalletAddress:
-      name: X-Wallet-Address
-      in: header
-      required: true
-      description: Your EOA wallet address
-      schema:
-        type: string
-        pattern: ^0x[a-fA-F0-9]{40}$
-    XProxyAddress:
-      name: X-Proxy-Address
-      in: header
-      required: true
-      description: Your proxy wallet address (from login response)
-      schema:
-        type: string
-        pattern: ^0x[a-fA-F0-9]{40}$
   schemas:
-    OpenOrdersResponse:
-      type: object
-      properties:
-        orders:
-          type: array
-          items:
-            $ref: '#/components/schemas/OpenOrder'
-    BalanceResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-        data:
-          type: object
-          properties:
-            balance:
-              type: string
-              description: Account balance in USD (decimal string)
-        error:
-          $ref: '#/components/schemas/Error'
-    Position:
-      type: object
-      properties:
-        market_id:
-          type: string
-          description: Market ID (hex)
-        market_name:
-          type: string
-        side:
-          type: string
-          enum:
-          - long
-          - short
-        quantity:
-          type: string
-          description: Position quantity in shares
-        average_price:
-          type: string
-          description: Average entry price in cents
-        amount:
-          type: string
-          description: Position amount in USD
-    Error:
-      type: object
-      properties:
-        code:
-          type: string
-        message:
-          type: string
-        details:
-          type: string
     PositionsResponse:
       type: object
       properties:
@@ -228,16 +153,6 @@ components:
             $ref: '#/components/schemas/Position'
         error:
           $ref: '#/components/schemas/Error'
-    ErrorResponse:
-      type: object
-      properties:
-        error:
-          $ref: '#/components/schemas/Error'
-        message:
-          type: string
-        success:
-          type: boolean
-          default: false
     OpenOrder:
       type: object
       properties:
@@ -263,6 +178,67 @@ components:
         remaining_quantity:
           type: string
           description: Remaining quantity in shares
+    Position:
+      type: object
+      properties:
+        market_id:
+          type: string
+          description: Market ID (hex)
+        market_name:
+          type: string
+        side:
+          type: string
+          enum:
+          - long
+          - short
+        quantity:
+          type: string
+          description: Position quantity in shares
+        average_price:
+          type: string
+          description: Average entry price in cents
+        amount:
+          type: string
+          description: Position amount in USD
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          $ref: '#/components/schemas/Error'
+        message:
+          type: string
+        success:
+          type: boolean
+          default: false
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: string
+    BalanceResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            balance:
+              type: string
+              description: Account balance in USD (decimal string)
+        error:
+          $ref: '#/components/schemas/Error'
+    OpenOrdersResponse:
+      type: object
+      properties:
+        orders:
+          type: array
+          items:
+            $ref: '#/components/schemas/OpenOrder'
     EarningsResponse:
       type: object
       properties:
@@ -278,6 +254,30 @@ components:
         total_pnl:
           type: string
           description: Total PnL (decimal string)
+  parameters:
+    XWalletAddress:
+      name: X-Wallet-Address
+      in: header
+      required: true
+      description: Your EOA wallet address
+      schema:
+        type: string
+        pattern: ^0x[a-fA-F0-9]{40}$
+    XProxyAddress:
+      name: X-Proxy-Address
+      in: header
+      required: true
+      description: Your proxy wallet address (from login response)
+      schema:
+        type: string
+        pattern: ^0x[a-fA-F0-9]{40}$
+  responses:
+    Unauthorized:
+      description: Authentication required or failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
   securitySchemes:
     BearerAuth:
       type: http
