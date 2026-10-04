@@ -105,7 +105,67 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 components:
+  responses:
+    Unauthorized:
+      description: Authentication required or failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
   schemas:
+    LoginResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            access_token:
+              type: string
+              description: JWT access token
+            refresh_token:
+              type: string
+              description: Refresh token. Send as `X-Refresh-Token` header (or use the `refresh_token` cookie set by this endpoint) when calling `POST /api/v1/auth/refresh/token`.
+            data:
+              type: object
+              properties:
+                user_id:
+                  type: string
+                is_new_user:
+                  type: boolean
+                is_activated:
+                  type: boolean
+                is_new_activated:
+                  type: boolean
+                default_username:
+                  type: string
+                profile_picture:
+                  type: string
+                is_enabled_trading:
+                  type: boolean
+                  description: 'Whether trading is enabled for the user''s proxy wallet.
+
+                    If `false` or missing: complete Safe approval, then **re-login** (MANDATORY).
+
+                    '
+                wallet_address:
+                  type: string
+                proxy_wallet_addr:
+                  type: string
+            proxy_wallet_addr:
+              type: string
+              description: Proxy (Safe) wallet address
+            wallet_address:
+              type: string
+        error:
+          $ref: '#/components/schemas/Error'
     LoginWithSignatureRequest:
       type: object
       required:
@@ -160,25 +220,6 @@ components:
               type: string
               format: uri
               description: Profile picture URL (optional)
-    ErrorResponse:
-      type: object
-      properties:
-        error:
-          $ref: '#/components/schemas/Error'
-        message:
-          type: string
-        success:
-          type: boolean
-          default: false
-    Error:
-      type: object
-      properties:
-        code:
-          type: string
-        message:
-          type: string
-        details:
-          type: string
     RefreshTokenResponse:
       type: object
       description: 'Token refresh response. Includes new access token and user details.
@@ -228,66 +269,25 @@ components:
                   type: boolean
         error:
           $ref: '#/components/schemas/Error'
-    LoginResponse:
+    ErrorResponse:
       type: object
       properties:
-        success:
-          type: boolean
-        data:
-          type: object
-          properties:
-            access_token:
-              type: string
-              description: JWT access token
-            refresh_token:
-              type: string
-              description: Refresh token. Send as `X-Refresh-Token` header (or use the `refresh_token` cookie set by this endpoint) when calling `POST /api/v1/auth/refresh/token`.
-            data:
-              type: object
-              properties:
-                user_id:
-                  type: string
-                is_new_user:
-                  type: boolean
-                is_activated:
-                  type: boolean
-                is_new_activated:
-                  type: boolean
-                default_username:
-                  type: string
-                profile_picture:
-                  type: string
-                is_enabled_trading:
-                  type: boolean
-                  description: 'Whether trading is enabled for the user''s proxy wallet.
-
-                    If `false` or missing: complete Safe approval, then **re-login** (MANDATORY).
-
-                    '
-                wallet_address:
-                  type: string
-                proxy_wallet_addr:
-                  type: string
-            proxy_wallet_addr:
-              type: string
-              description: Proxy (Safe) wallet address
-            wallet_address:
-              type: string
         error:
           $ref: '#/components/schemas/Error'
-  responses:
-    BadRequest:
-      description: Invalid request
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-    Unauthorized:
-      description: Authentication required or failed
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
+        message:
+          type: string
+        success:
+          type: boolean
+          default: false
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: string
   securitySchemes:
     BearerAuth:
       type: http

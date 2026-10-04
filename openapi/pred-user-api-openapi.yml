@@ -67,16 +67,6 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
-    PrepareSafeApprovalResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-        data:
-          type: object
-          properties:
-            data:
-              $ref: '#/components/schemas/SafeTransactionData'
     SafeTransactionData:
       type: object
       properties:
@@ -123,16 +113,6 @@ components:
           type: string
         details:
           type: string
-    ErrorResponse:
-      type: object
-      properties:
-        error:
-          $ref: '#/components/schemas/Error'
-        message:
-          type: string
-        success:
-          type: boolean
-          default: false
     PrepareSafeApprovalRequest:
       type: object
       required:
@@ -161,6 +141,16 @@ components:
           type: string
         error:
           $ref: '#/components/schemas/Error'
+    PrepareSafeApprovalResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/SafeTransactionData'
     ExecuteSafeApprovalRequest:
       type: object
       required:
@@ -177,6 +167,16 @@ components:
           pattern: ^0x[a-fA-F0-9]{130}$
         data:
           $ref: '#/components/schemas/SafeTransactionData'
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          $ref: '#/components/schemas/Error'
+        message:
+          type: string
+        success:
+          type: boolean
+          default: false
   responses:
     Unauthorized:
       description: Authentication required or failed

@@ -259,43 +259,34 @@ components:
         remaining_quantity:
           type: string
           description: Remaining quantity in shares
-    OrderBookLevel:
+    BulkCancelOrdersRequest:
       type: object
       properties:
-        price:
-          type: string
-          description: Price in cents
-        size:
-          type: string
-          description: Size in shares
-    OrderResponse:
+        orders:
+          type: array
+          description: Orders to cancel. If empty, cancels all open orders for the parent market.
+          items:
+            type: object
+            required:
+            - order_id
+            properties:
+              order_id:
+                type: string
+              market_id:
+                type: string
+    CancelOrderRequest:
       type: object
-      description: Place order response. See status enum for meanings.
+      required:
+      - order_id
+      - market_id
       properties:
-        status:
-          type: string
-          enum:
-          - order_created
-          - matched
-          - partial_matched
-          - open_order
-          - failed
-          description: 'order_created — accepted
-
-            matched — fully filled
-
-            partial_matched — partially filled
-
-            open_order — resting
-
-            failed — placement failed
-
-            '
         order_id:
           type: string
-          description: Unique order ID
-        message:
+          description: Order ID to cancel
+        market_id:
           type: string
+          description: Market ID (bytes32 hex). See **Market Discovery** for what market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover).
+          pattern: ^0x[a-fA-F0-9]{64}$
     BulkCancelOrdersResponse:
       type: object
       properties:
@@ -318,25 +309,28 @@ components:
           type: integer
         total_failed:
           type: integer
-    ErrorResponse:
+    CancelOrderResponse:
       type: object
       properties:
-        error:
-          $ref: '#/components/schemas/Error'
+        status:
+          type: string
+          enum:
+          - user_cancelled
+        order_id:
+          type: string
         message:
           type: string
         success:
           type: boolean
-          default: false
-    Error:
+    OrderBookLevel:
       type: object
       properties:
-        code:
+        price:
           type: string
-        message:
+          description: Price in cents
+        size:
           type: string
-        details:
-          type: string
+          description: Size in shares
     PlaceOrderRequest:
       type: object
       required:
@@ -408,6 +402,34 @@ components:
           type: integer
           description: Fee rate in basis points. Must be 0 (fees not supported).
           default: 0
+    OrderResponse:
+      type: object
+      description: Place order response. See status enum for meanings.
+      properties:
+        status:
+          type: string
+          enum:
+          - order_created
+          - matched
+          - partial_matched
+          - open_order
+          - failed
+          description: 'order_created — accepted
+
+            matched — fully filled
+
+            partial_matched — partially filled
+
+            open_order — resting
+
+            failed — placement failed
+
+            '
+        order_id:
+          type: string
+          description: Unique order ID
+        message:
+          type: string
     OrderBookResponse:
       type: object
       properties:
@@ -423,6 +445,16 @@ components:
           description: Sell orders sorted by price ascending
           items:
             $ref: '#/components/schemas/OrderBookLevel'
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          $ref: '#/components/schemas/Error'
+        message:
+          type: string
+        success:
+          type: boolean
+          default: false
     OpenOrdersResponse:
       type: object
       properties:
@@ -430,56 +462,24 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/OpenOrder'
-    CancelOrderRequest:
-      type: object
-      required:
-      - order_id
-      - market_id
-      properties:
-        order_id:
-          type: string
-          description: Order ID to cancel
-        market_id:
-          type: string
-          description: Market ID (bytes32 hex). See **Market Discovery** for what market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover).
-          pattern: ^0x[a-fA-F0-9]{64}$
-    BulkCancelOrdersRequest:
+    Error:
       type: object
       properties:
-        orders:
-          type: array
-          description: Orders to cancel. If empty, cancels all open orders for the parent market.
-          items:
-            type: object
-            required:
-            - order_id
-            properties:
-              order_id:
-                type: string
-              market_id:
-                type: string
-    CancelOrderResponse:
-      type: object
-      properties:
-        status:
-          type: string
-          enum:
-          - user_cancelled
-        order_id:
+        code:
           type: string
         message:
           type: string
-        success:
-          type: boolean
+        details:
+          type: string
   responses:
-    BadRequest:
-      description: Invalid request
+    Unauthorized:
+      description: Authentication required or failed
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-    Unauthorized:
-      description: Authentication required or failed
+    BadRequest:
+      description: Invalid request
       content:
         application/json:
           schema:
@@ -493,19 +493,19 @@ components:
       schema:
         type: string
         pattern: ^0x[a-fA-F0-9]{64}$
-    XWalletAddress:
-      name: X-Wallet-Address
-      in: header
-      required: true
-      description: Your EOA wallet address
-      schema:
-        type: string
-        pattern: ^0x[a-fA-F0-9]{40}$
     XProxyAddress:
       name: X-Proxy-Address
       in: header
       required: true
       description: Your proxy wallet address (from login response)
+      schema:
+        type: string
+        pattern: ^0x[a-fA-F0-9]{40}$
+    XWalletAddress:
+      name: X-Wallet-Address
+      in: header
+      required: true
+      description: Your EOA wallet address
       schema:
         type: string
         pattern: ^0x[a-fA-F0-9]{40}$

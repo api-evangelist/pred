@@ -127,120 +127,16 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 components:
+  parameters:
+    ParentMarketIDPath:
+      name: parentMarketID
+      in: path
+      required: true
+      description: Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover).
+      schema:
+        type: string
+        pattern: ^0x[a-fA-F0-9]{64}$
   schemas:
-    ErrorResponse:
-      type: object
-      properties:
-        error:
-          $ref: '#/components/schemas/Error'
-        message:
-          type: string
-        success:
-          type: boolean
-          default: false
-    ParentMarketDetailsResponse:
-      type: object
-      properties:
-        data:
-          type: object
-          properties:
-            parent_market_data:
-              type: object
-              properties:
-                parent_market_id:
-                  type: string
-                canonical_name:
-                  type: string
-                title:
-                  type: string
-                markets_open:
-                  type: string
-                  format: date-time
-                status:
-                  type: string
-                parent_market_family:
-                  type: string
-                market_line:
-                  type: string
-                rules:
-                  type: string
-                parent_market_volume:
-                  type: string
-                contract_type:
-                  type: string
-                contract_address:
-                  type: string
-                logo_url:
-                  type: string
-                theme_color:
-                  type: string
-                parent_market_type:
-                  type: string
-            markets:
-              type: array
-              items:
-                type: object
-                properties:
-                  market_id:
-                    type: string
-                  team_id:
-                    type: string
-                  name:
-                    type: string
-                  logo_url:
-                    type: string
-                  alternate_name:
-                    type: string
-                  status:
-                    type: string
-                  tick_size:
-                    type: string
-                  rules:
-                    type: string
-                  ltp:
-                    type: string
-                  volume:
-                    type: string
-                  mid_price:
-                    type: string
-                  percentage_change:
-                    type: string
-    Error:
-      type: object
-      properties:
-        code:
-          type: string
-        message:
-          type: string
-        details:
-          type: string
-    MarketDiscoveryDiscoverResponse:
-      type: object
-      properties:
-        data:
-          type: object
-          properties:
-            parent_markets_list:
-              type: array
-              description: Paginated list of parent-market discovery entries. Full-feed clients should keep requesting pages until `offset + parent_markets_list.length >= total`.
-              items:
-                $ref: '#/components/schemas/MarketDiscoveryDiscoverItem'
-            aggregated_data:
-              type: array
-              items:
-                type: object
-                properties:
-                  canonical_name:
-                    type: string
-                  super_parent_market_volume:
-                    type: string
-            limit:
-              type: integer
-            offset:
-              type: integer
-            total:
-              type: integer
-              description: Total number of parent-market entries available across all pages.
     MarketDiscoveryDiscoverItem:
       type: object
       properties:
@@ -331,15 +227,119 @@ components:
               status:
                 type: string
                 description: Child market status. Require `active` for trading/quoting; treat `resolved` and `redeemed` as terminal.
-  parameters:
-    ParentMarketIDPath:
-      name: parentMarketID
-      in: path
-      required: true
-      description: Parent market ID (bytes32 hex). See **Market Discovery** for what parent_market_id is and how to get it (e.g. from GET /api/v1/market-discovery/discover).
-      schema:
-        type: string
-        pattern: ^0x[a-fA-F0-9]{64}$
+    ParentMarketDetailsResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            parent_market_data:
+              type: object
+              properties:
+                parent_market_id:
+                  type: string
+                canonical_name:
+                  type: string
+                title:
+                  type: string
+                markets_open:
+                  type: string
+                  format: date-time
+                status:
+                  type: string
+                parent_market_family:
+                  type: string
+                market_line:
+                  type: string
+                rules:
+                  type: string
+                parent_market_volume:
+                  type: string
+                contract_type:
+                  type: string
+                contract_address:
+                  type: string
+                logo_url:
+                  type: string
+                theme_color:
+                  type: string
+                parent_market_type:
+                  type: string
+            markets:
+              type: array
+              items:
+                type: object
+                properties:
+                  market_id:
+                    type: string
+                  team_id:
+                    type: string
+                  name:
+                    type: string
+                  logo_url:
+                    type: string
+                  alternate_name:
+                    type: string
+                  status:
+                    type: string
+                  tick_size:
+                    type: string
+                  rules:
+                    type: string
+                  ltp:
+                    type: string
+                  volume:
+                    type: string
+                  mid_price:
+                    type: string
+                  percentage_change:
+                    type: string
+    MarketDiscoveryDiscoverResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            parent_markets_list:
+              type: array
+              description: Paginated list of parent-market discovery entries. Full-feed clients should keep requesting pages until `offset + parent_markets_list.length >= total`.
+              items:
+                $ref: '#/components/schemas/MarketDiscoveryDiscoverItem'
+            aggregated_data:
+              type: array
+              items:
+                type: object
+                properties:
+                  canonical_name:
+                    type: string
+                  super_parent_market_volume:
+                    type: string
+            limit:
+              type: integer
+            offset:
+              type: integer
+            total:
+              type: integer
+              description: Total number of parent-market entries available across all pages.
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          $ref: '#/components/schemas/Error'
+        message:
+          type: string
+        success:
+          type: boolean
+          default: false
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: string
   securitySchemes:
     BearerAuth:
       type: http

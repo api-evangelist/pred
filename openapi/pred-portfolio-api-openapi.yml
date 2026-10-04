@@ -142,17 +142,6 @@ paths:
           $ref: '#/components/responses/Unauthorized'
 components:
   schemas:
-    PositionsResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-        positions:
-          type: array
-          items:
-            $ref: '#/components/schemas/Position'
-        error:
-          $ref: '#/components/schemas/Error'
     OpenOrder:
       type: object
       properties:
@@ -200,25 +189,6 @@ components:
         amount:
           type: string
           description: Position amount in USD
-    ErrorResponse:
-      type: object
-      properties:
-        error:
-          $ref: '#/components/schemas/Error'
-        message:
-          type: string
-        success:
-          type: boolean
-          default: false
-    Error:
-      type: object
-      properties:
-        code:
-          type: string
-        message:
-          type: string
-        details:
-          type: string
     BalanceResponse:
       type: object
       properties:
@@ -232,6 +202,27 @@ components:
               description: Account balance in USD (decimal string)
         error:
           $ref: '#/components/schemas/Error'
+    PositionsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        positions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Position'
+        error:
+          $ref: '#/components/schemas/Error'
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          $ref: '#/components/schemas/Error'
+        message:
+          type: string
+        success:
+          type: boolean
+          default: false
     OpenOrdersResponse:
       type: object
       properties:
@@ -254,15 +245,23 @@ components:
         total_pnl:
           type: string
           description: Total PnL (decimal string)
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: string
+  responses:
+    Unauthorized:
+      description: Authentication required or failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
   parameters:
-    XWalletAddress:
-      name: X-Wallet-Address
-      in: header
-      required: true
-      description: Your EOA wallet address
-      schema:
-        type: string
-        pattern: ^0x[a-fA-F0-9]{40}$
     XProxyAddress:
       name: X-Proxy-Address
       in: header
@@ -271,13 +270,14 @@ components:
       schema:
         type: string
         pattern: ^0x[a-fA-F0-9]{40}$
-  responses:
-    Unauthorized:
-      description: Authentication required or failed
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
+    XWalletAddress:
+      name: X-Wallet-Address
+      in: header
+      required: true
+      description: Your EOA wallet address
+      schema:
+        type: string
+        pattern: ^0x[a-fA-F0-9]{40}$
   securitySchemes:
     BearerAuth:
       type: http
