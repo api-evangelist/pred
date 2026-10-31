@@ -64,10 +64,150 @@
 > Full detail: **[Where this data comes from](https://apievangelist.com/about/where-our-data-comes-from)**
 <!-- API-EVANGELIST-PROVENANCE:END -->
 
-Pred (PRED) is a fully decentralized, peer-to-peer sports prediction exchange built on Base (Coinbase's Ethereum L2). It runs a real-time central limit order book where traders take LONG (YES) and SHORT (NO) positions on sporting outcomes priced 0.00–1.00 USDC, with self-custody via per-user Gnosis Safe proxy wallets, EIP-712 order signatures, and on-chain USDC settlement. Initial markets cover the English Premier League and NBA. Raised $2.5M backed by Accel, Coinbase Ventures, and Reverie.
+Pred (PRED) is a fully decentralized, peer-to-peer sports prediction exchange built on Base, Coinbase's Ethereum Layer 2 network. Rather than a traditional sportsbook, Pred runs a real-time central limit order book where traders take LONG (YES) and SHORT (NO) positions on sporting outcomes priced between 0.00 and 1.00 USDC, and prices emerge from live supply and demand. Users keep full self-custody of collateral through per-user Gnosis Safe proxy wallets and authorize every order with EIP-712 signatures, with on-chain settlement of USDC on Base. Winning traders are welcome with no account limits, sub-200ms order execution and spreads under 2%. Pred publishes a documented HTTP trading API (login-with-signature auth, market discovery, order placement/cancellation, portfolio) plus an Ably WebSocket stream for real-time orderbook and order events. Initial markets cover the English Premier League and NBA. The company has raised $2.5M backed by Accel, Coinbase Ventures and Reverie.
 
-- Website: https://www.pred.app/
-- Docs / API reference: https://pred-1.gitbook.io/pred-docs
-- Publication ("The Game"): https://game.pred.app/
+**Areas:** Company · Fintech · Prediction Markets · Sports · Trading · Exchange · Web3 · Blockchain · Base · USDC · Real-Time
 
-This repo was enriched from Pred's public developer surface: a documented HTTP trading API (OpenAPI) plus an Ably WebSocket real-time stream.
+## Pred on APIs.io
+
+Everything profiled for Pred is published on APIs.io rather than in this repository. Start at the provider page — **[apis.io/providers/pred/](https://apis.io/providers/pred/)** — or go straight to one of the APIs or properties below.
+
+### APIs (7)
+
+- [Pred Authentication API](https://apis.io/apis/pred/pred-authentication-api/) — Required headers, token refresh, and EIP-712 CreateProxy signature for login. For overview, getting started, and environment configuration, see…
+- [Pred Market Discovery API](https://apis.io/apis/pred/pred-market-discovery-api/) — Market information and discovery (public; no auth). Use this section to understand **parent_market_id** and **market_id** and to list all markets. ## What…
+- [Pred Orders API](https://apis.io/apis/pred/pred-orders-api/) — Order placement, cancellation, and management endpoints. ## EIP-712 order signature All orders must be signed using EIP-712. Format: `0x<r><s><v>` (132 hex…
+- [Pred Overview API](https://apis.io/apis/pred/pred-overview-api/) — ## About PRED PRED is a fully decentralized prediction market platform built on Base (Ethereum L2), enabling users to trade on real-world events with LONG…
+- [Pred Portfolio API](https://apis.io/apis/pred/pred-portfolio-api/) — Portfolio, balance, positions, and open orders. **Endpoints:** - Balance: `GET /api/v1/portfolio/balance` - Positions: `GET /api/v1/portfolio/positions` -…
+- [Pred User API](https://apis.io/apis/pred/pred-user-api/) — Safe approval endpoints for enabling trading on your proxy wallet. ## Safe approval signature — raw secp256k1 - Sign the `transactionHash` from prepare…
+- [Pred WebSocket API](https://apis.io/apis/pred/pred-websocket-api/) — PRED uses [Ably](https://ably.com/) for real-time WebSocket data. Use Ably's token auth with `POST /api/v1/auth/ably` as your `authCallback`. ## Token auth…
+
+### Published properties
+
+Each property below is a page on APIs.io carrying the machine-readable artifact and what it says.
+
+#### Arazzo workflows (1)
+
+Multi-step workflows that chain operations into a business task.
+
+- [PRED trading workflows](https://apis.io/arazzos/pred/pred-trading/)
+
+#### AsyncAPI (1)
+
+Event-driven and webhook contracts.
+
+- [PRED Real-Time API (Ably WebSocket)](https://apis.io/asyncapis/pred/pred-realtime-asyncapi/)
+
+#### Event channels (2)
+
+Individual events and webhooks the provider emits.
+
+- [market:{marketId}](https://apis.io/channels/pred/market-marketid/)
+- [private:user:{userId}](https://apis.io/channels/pred/private-user-userid/)
+
+#### MCP servers (1)
+
+Model Context Protocol servers that expose the API to agents.
+
+- [pred](https://apis.io/servers/pred/pred/)
+
+#### Agentic access (1)
+
+Which operations an agent can call, which act, and which need a human in the loop.
+
+- [Pred Agentic Access](https://apis.io/agentic-access/pred/pred-agentic-access/)
+
+#### Collections (7)
+
+Postman and Open Collection request collections.
+
+- [PRED Trading Platform Authentication API](https://apis.io/collections/pred/open-pred-authentication-api/)
+- [PRED Trading Platform Authentication Market Discovery API](https://apis.io/collections/pred/open-pred-market-discovery-api/)
+- [PRED Trading Platform Authentication Orders API](https://apis.io/collections/pred/open-pred-orders-api/)
+- [PRED Trading Platform Authentication Overview API](https://apis.io/collections/pred/open-pred-overview-api/)
+- [PRED Trading Platform Authentication Portfolio API](https://apis.io/collections/pred/open-pred-portfolio-api/)
+- [PRED Trading Platform Authentication User API](https://apis.io/collections/pred/open-pred-user-api/)
+- [PRED Trading Platform Authentication WebSocket API](https://apis.io/collections/pred/open-pred-websocket-api/)
+
+#### Overlays (1)
+
+OpenAPI overlays, including conversational phrasing for each operation.
+
+- [Pred Openapi Overlay](https://apis.io/overlays/pred/pred-openapi-overlay/)
+
+#### Security (2)
+
+Authentication, trust centre, and vulnerability disclosure.
+
+- [Pred Authentication](https://apis.io/security/pred/pred-authentication/)
+- [Pred Domain Security](https://apis.io/security/pred/pred-domain-security/)
+
+## Where to find this API
+
+Links to the company's own pages. This repository publishes no copy of their specifications — the canonical document is theirs and lives at the URLs below.
+
+- [Website](https://www.pred.app/)
+- [Documentation](https://pred-1.gitbook.io/pred-docs)
+- [Getting started](https://pred-1.gitbook.io/pred-docs/getting-started/core-concepts)
+- [API reference](https://pred-1.gitbook.io/pred-docs/api-reference/overview)
+- [Pricing](https://pred-1.gitbook.io/pred-docs/trading/fees)
+- [Sign up](https://pred-1.gitbook.io/pred-docs/getting-started/signup)
+- [Support](https://pred-1.gitbook.io/pred-docs/support/contact-us)
+- [Blog](https://game.pred.app/)
+- [Terms of service](https://www.pred.app/terms-of-use)
+- [Privacy policy](https://www.pred.app/privacy-policy)
+
+## API Evangelist rating
+
+**Kin Score 41.6** — developing · rubric 0.25.0 · scored 2026-10-23
+
+| Facet | Score |
+|---|---|
+| Discoverability | 73.2 |
+| Contract quality | 55.5 |
+| Contract governance | 4.5 |
+| Operational transparency | 0.0 |
+| Developer ergonomics | 56.5 |
+| Access clarity | 44.7 |
+
+**Agent readiness 31.4** — agent-ready
+
+| Agent-readiness dimension | Result |
+|---|---|
+| Spec Presence | yes |
+| Agentic Access | derived (partial credit) |
+| Reversibility Documented | documented (partial credit) |
+| MCP Server | — |
+| Auth Clarity | bearer (partial credit) |
+| Idempotency | — |
+| Error Semantics | verified |
+| OpenAPI Examples | — |
+| Rate Limit Signal | — |
+| Event Surface Described | yes |
+| Agent Skills | derived (partial credit) |
+| Well Known Catalog | — |
+| Consent Identity | — |
+| Agent Card | — |
+| Dry Run Mode | — |
+| Delegated Identity | — |
+| Protected Resource Metadata | — |
+| Dynamic Client Registration | — |
+| Agentic Commerce | — |
+| Pagination Ratio | na |
+| Operation Distinctiveness | distinct |
+
+**Regulatory alignment 23.1** — Securities & Market Data
+
+The rubric is published at [github.com/api-evangelist/kin-score](https://github.com/api-evangelist/kin-score). The per-check breakdown behind these numbers — which checks were earned, partial or missed — along with score history and how this provider compares to its peers, is available at [apis.io/providers/pred/](https://apis.io/providers/pred/).
+
+## How this profile is made
+
+API Evangelist profiles a company's public API surface the way a developer would find it: the website, developer portal and documentation, the specifications it publishes, its public repositories, and its pricing, status and changelog pages. From that it derives the properties above — contracts split per API, workflows, schemas, collections, governance rules, plans and rate limits — and scores them against the published [Kin Score rubric](https://github.com/api-evangelist/kin-score).
+
+The artifacts are published on [APIs.io](https://apis.io), not in this repository. This repository is the public record for Pred: the place to say something is wrong, missing or out of date, and to ask for a re-score or a removal.
+
+## Open an issue
+
+- **Something about this listing** — a wrong description, a missing API, a stale artifact or a question about the rating: [open an issue on this repository](https://github.com/api-evangelist/pred/issues/new).
+- **A new API, or one that is not in the catalog yet** — [submit it on APIs.io](https://apis.io/add/).
+- **Anything else** — [the APIs.io inbox](https://github.com/api-search/inbox/issues/new) or [info@apievangelist.com](mailto:info@apievangelist.com).
